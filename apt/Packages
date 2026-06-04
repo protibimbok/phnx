@@ -1,0 +1,35 @@
+Package: phnx
+Architecture: amd64
+Version: 1.0.0
+Priority: optional
+Maintainer: Saad Khan <sakib.saad.khan@gmail.com>
+Installed-Size: 10452
+Depends: nginx
+Recommends: php-fpm
+Filename: pool/main/phnx_1.0.0_linux_amd64.deb
+Size: 4187982
+MD5sum: 5b3c763e77399bcafcd7c1ed2d95d121
+SHA1: 52c3f08cad8cd3aacfc744d6c6b66f3ee3ea38bd
+SHA256: 4eafbf777bfa017264f79ed083aca34f089cdd76a1d7df778910c51fc0f43c2d
+SHA512: 2b1fbdb490dea78245a55e141d36a26029ff0e6ada030a97d0aaef64394ae4bd92150c78e282fb5316036e356545bdbd1603fb91abd606c8b10275b4c46fa9e9
+Homepage: https://github.com/protibimbok/phnx
+Description: PHP + Nginx local development environment manager
+Architecture-Variant: amd64v1
+
+Package: phnx
+Architecture: arm64
+Version: 1.0.0
+Priority: optional
+Maintainer: Saad Khan <sakib.saad.khan@gmail.com>
+Installed-Size: 9728
+Depends: nginx
+Recommends: php-fpm
+Filename: pool/main/phnx_1.0.0_linux_arm64.deb
+Size: 3800244
+MD5sum: 32595afa815a7d5cafb1f2470286227d
+SHA1: 8b8d8f8b3e8be158dd2065387352847fcc841e96
+SHA256: e66ef85a3cddca9d3d4f1c7c2fbcc0b1059d903ada341e0fb9d4372508797cdd
+SHA512: d92863eee65ae585909f97b1a883335461c38ade28e6e1897e57b883a89849cad437e76f722f655d827d2a038af2f9ea7c0ccb4074865db7b5e3788da515edc2
+Homepage: https://github.com/protibimbok/phnx
+Description: PHP + Nginx local development environment manager
+
