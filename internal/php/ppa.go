@@ -28,6 +28,16 @@ func EnsurePPA() error {
 	}
 }
 
+// ondrej/php PPA signing keys. The first is the Launchpad-generated PPA key,
+// the second is Ondřej Surý's personal key; releases may be signed by either,
+// so both must be present or `apt-get update` fails with NO_PUBKEY.
+var ondrejKeyFingerprints = []string{
+	"B8DC7E53946656EFBCE4C1DD71DAEAAB4AD4CAB6",
+	"14AA40EC0831756756D7F66C4F4EA0AAE5267A6C",
+}
+
+const ondrejKeyring = "/usr/share/keyrings/ondrej-php.gpg"
+
 func ensureOndrejPPA() error {
 	// Check if PPA already provides packages
 	out, _ := exec.Command("apt-cache", "policy", fmt.Sprintf("php%s-fpm", LatestStable())).Output()
@@ -41,10 +51,64 @@ func ensureOndrejPPA() error {
 	}
 
 	fmt.Println("Adding ondrej/php PPA...")
+
+	// Set the repo up manually with an explicit keyring. On Linux Mint and other
+	// Ubuntu derivatives, `add-apt-repository` does not reliably import the PPA's
+	// signing keys (leading to NO_PUBKEY errors), and may use the derivative's own
+	// codename instead of the Ubuntu base suite. Deriving the suite from
+	// UBUNTU_CODENAME and importing keys ourselves avoids both problems.
+	if codename := system.UbuntuCodename(); codename != "" {
+		if err := setupOndrejRepo(codename); err != nil {
+			return err
+		}
+		return system.Run("apt-get", "update")
+	}
+
+	// Fallback: let add-apt-repository figure out the suite, then make sure the
+	// keys are present even if it failed to import them.
 	if err := system.Run("add-apt-repository", "-y", "ppa:ondrej/php"); err != nil {
 		return fmt.Errorf("adding ondrej/php PPA: %w", err)
 	}
+	if err := importOndrejKeys(); err != nil {
+		return err
+	}
 	return system.Run("apt-get", "update")
+}
+
+// setupOndrejRepo imports the signing keys and writes a signed-by sources entry
+// for the given Ubuntu suite.
+func setupOndrejRepo(codename string) error {
+	if err := importOndrejKeys(); err != nil {
+		return err
+	}
+	entry := fmt.Sprintf(
+		"deb [signed-by=%s] https://ppa.launchpadcontent.net/ondrej/php/ubuntu %s main\n",
+		ondrejKeyring, codename,
+	)
+	if err := system.WriteFile("/etc/apt/sources.list.d/ondrej-php.list", entry); err != nil {
+		return fmt.Errorf("writing ondrej/php sources list: %w", err)
+	}
+	return nil
+}
+
+// importOndrejKeys fetches the PPA signing keys from the Ubuntu keyserver into a
+// dedicated keyring file referenced via signed-by.
+func importOndrejKeys() error {
+	// gpg is required to receive and store the keys; install it if missing.
+	if _, err := exec.LookPath("gpg"); err != nil {
+		if err := system.Run("apt-get", "install", "-y", "gnupg"); err != nil {
+			return fmt.Errorf("installing gnupg for key import: %w", err)
+		}
+	}
+	args := []string{
+		"gpg", "--batch", "--no-default-keyring", "--keyring", ondrejKeyring,
+		"--keyserver", "hkps://keyserver.ubuntu.com", "--recv-keys",
+	}
+	args = append(args, ondrejKeyFingerprints...)
+	if err := system.Run(args...); err != nil {
+		return fmt.Errorf("importing ondrej/php signing keys: %w", err)
+	}
+	return nil
 }
 
 func ensureRemiRepo() error {
