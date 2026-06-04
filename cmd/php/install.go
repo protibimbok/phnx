@@ -2,6 +2,7 @@ package phpcmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/fpm"
@@ -56,6 +57,19 @@ func runInstall(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("writing FPM pool: %w", err)
 	}
 	ui.Success(fmt.Sprintf("FPM pool written for PHP %s", version))
+
+	// 3b. Enable bundled extensions in php.ini before the FPM service starts.
+	resolved := php.ResolvedPHP{
+		Version: version,
+		Tagged:  true,
+		Binary:  system.Platform.PhpBinaryPath(version),
+	}
+	if names, err := php.EnableExtensions(resolved); err != nil {
+		ui.Warn(fmt.Sprintf("could not enable PHP extensions: %v", err))
+	} else if len(names) > 0 {
+		ui.Success(fmt.Sprintf("Enabled %d PHP extension(s) for PHP %s: %s",
+			len(names), version, strings.Join(names, ", ")))
+	}
 
 	// 4. Enable and start FPM service
 	svc := system.NewServiceManager()

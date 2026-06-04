@@ -192,28 +192,34 @@ func runConfigure(_ *cobra.Command, _ []string) error {
 		resolved, resolveErr := php.ResolvePHP(cfg, cfg.DefaultPHP)
 		if resolveErr != nil {
 			ui.Warn(fmt.Sprintf("could not resolve PHP %s: %v", cfg.DefaultPHP, resolveErr))
-		} else if resolved.Tagged {
-			if err := fpm.WritePool(cfg.DefaultPHP, cfg.RealUser, cfg.RealGroup); err != nil {
-				return fmt.Errorf("writing FPM pool: %w", err)
-			}
-			svc := system.NewServiceManager()
-			_ = svc.Restart(resolved.Service)
-			ui.Success(fmt.Sprintf("FPM pool written for PHP %s", cfg.DefaultPHP))
 		} else {
-			// Untagged/system php-fpm uses the distro pool (e.g. www.conf), which
-			// runs as http/www-data. Make it run as the real user so workers can
-			// read project roots under user-owned, non-world-traversable paths.
-			if runtime.GOOS == "linux" {
-				if poolFile, perr := fpm.EnsurePoolRunsAsUser(resolved.Socket, cfg.RealUser, cfg.RealGroup); perr != nil {
-					ui.Warn(fmt.Sprintf("Could not set php-fpm pool user: %v", perr))
-				} else {
-					ui.Success(fmt.Sprintf("php-fpm pool user set to %s %s in %s", cfg.RealUser, cfg.RealGroup, poolFile))
+			// Enable bundled extensions in php.ini before the FPM service is
+			// (re)started below so the new modules are picked up.
+			enablePHPExtensions(resolved)
+
+			if resolved.Tagged {
+				if err := fpm.WritePool(cfg.DefaultPHP, cfg.RealUser, cfg.RealGroup); err != nil {
+					return fmt.Errorf("writing FPM pool: %w", err)
 				}
+				svc := system.NewServiceManager()
+				_ = svc.Restart(resolved.Service)
+				ui.Success(fmt.Sprintf("FPM pool written for PHP %s", cfg.DefaultPHP))
+			} else {
+				// Untagged/system php-fpm uses the distro pool (e.g. www.conf), which
+				// runs as http/www-data. Make it run as the real user so workers can
+				// read project roots under user-owned, non-world-traversable paths.
+				if runtime.GOOS == "linux" {
+					if poolFile, perr := fpm.EnsurePoolRunsAsUser(resolved.Socket, cfg.RealUser, cfg.RealGroup); perr != nil {
+						ui.Warn(fmt.Sprintf("Could not set php-fpm pool user: %v", perr))
+					} else {
+						ui.Success(fmt.Sprintf("php-fpm pool user set to %s %s in %s", cfg.RealUser, cfg.RealGroup, poolFile))
+					}
+				}
+				svc := system.NewServiceManager()
+				_ = svc.Enable(resolved.Service)
+				_ = svc.Restart(resolved.Service)
+				ui.Success(fmt.Sprintf("System php-fpm service started for PHP %s", cfg.DefaultPHP))
 			}
-			svc := system.NewServiceManager()
-			_ = svc.Enable(resolved.Service)
-			_ = svc.Restart(resolved.Service)
-			ui.Success(fmt.Sprintf("System php-fpm service started for PHP %s", cfg.DefaultPHP))
 		}
 	}
 
@@ -244,4 +250,19 @@ func runConfigure(_ *cobra.Command, _ []string) error {
 	ui.Separator()
 	ui.Success("phnx is configured and ready!")
 	return nil
+}
+
+// enablePHPExtensions uncomments the bundled extensions in the resolved PHP's
+// php.ini file(s). Failures are non-fatal — they only mean some extensions stay
+// disabled, which the user can fix manually.
+func enablePHPExtensions(resolved php.ResolvedPHP) {
+	names, err := php.EnableExtensions(resolved)
+	if err != nil {
+		ui.Warn(fmt.Sprintf("could not enable PHP extensions: %v", err))
+		return
+	}
+	if len(names) > 0 {
+		ui.Success(fmt.Sprintf("Enabled %d PHP extension(s) for PHP %s: %s",
+			len(names), resolved.Version, strings.Join(names, ", ")))
+	}
 }

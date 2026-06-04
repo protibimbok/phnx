@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -116,10 +117,11 @@ func WriteFile(path, content string) error {
 	if !errors.Is(err, os.ErrPermission) {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
-	// Permission denied — escalate via sudo tee
+	// Permission denied — escalate via sudo tee. Discard tee's stdout so we
+	// don't echo the (potentially large) file contents back to the terminal.
 	cmd := exec.Command("sudo", "tee", path)
 	cmd.Stdin = strings.NewReader(content)
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = io.Discard
 	var errBuf bytes.Buffer
 	cmd.Stderr = &errBuf
 	if err2 := cmd.Run(); err2 != nil {
