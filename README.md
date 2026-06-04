@@ -1,6 +1,6 @@
 # phnx
 
-PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, and helper tools (Composer, WP-CLI, phpMyAdmin, Node.js) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
+PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, and helper tools (Composer, WP-CLI, phpMyAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
 
 Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and macOS (Homebrew).
 
@@ -169,7 +169,6 @@ Install optional helper tools. Downloads are checksum-verified.
 phnx setup composer      # install Composer to /usr/local/bin/composer
 phnx setup wpcli         # install WP-CLI to /usr/local/bin/wp
 phnx setup phpmyadmin    # install phpMyAdmin as an internal site → http://phpmyadmin.<tld>
-phnx setup nodejs        # install Node.js (NodeSource on Linux, Homebrew on macOS)
 ```
 
 ---
