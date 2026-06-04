@@ -1,0 +1,105 @@
+version: 2
+
+project_name: phnx
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: phnx
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/protibimbok/phnx/cmd.Version={{.Version}}
+      - -X github.com/protibimbok/phnx/cmd.Commit={{.ShortCommit}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+# ── Homebrew Cask ────────────────────────────────────────────────────────────
+# Requires: HOMEBREW_TAP_GITHUB_TOKEN secret with write access to homebrew-tap repo
+homebrew_casks:
+  - name: phnx
+    homepage: https://github.com/protibimbok/phnx
+    description: PHP + Nginx local development environment manager
+    license: MIT
+    binaries:
+      - phnx
+    repository:
+      owner: protibimbok
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/phnx"]
+          end
+
+# ── AUR (Arch Linux) ─────────────────────────────────────────────────────────
+# Requires: AUR_KEY secret (SSH private key registered on aur.archlinux.org)
+aurs:
+  - name: phnx-bin
+    homepage: https://github.com/protibimbok/phnx
+    description: PHP + Nginx local development environment manager
+    maintainers:
+      - "Saad Khan <sakib.saad.khan@gmail.com>"
+    license: MIT
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/phnx-bin.git"
+    depends:
+      - nginx
+      - php-fpm
+    optdepends:
+      - "composer: PHP dependency manager"
+      - "wp-cli: WordPress CLI"
+    provides:
+      - phnx
+    conflicts:
+      - phnx
+
+# ── Linux packages (.deb / .rpm / .apk) ──────────────────────────────────────
+nfpms:
+  - id: packages
+    package_name: phnx
+    homepage: https://github.com/protibimbok/phnx
+    description: PHP + Nginx local development environment manager
+    maintainer: Saad Khan <sakib.saad.khan@gmail.com>
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    dependencies:
+      - nginx
+    recommends:
+      - php-fpm

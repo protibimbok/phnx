@@ -1,0 +1,30 @@
+server {
+    listen {{.Port}};
+    listen [::]:{{.Port}};
+    server_name {{.ServerName}};
+    root {{.RootDir}}/public;
+    index index.php index.html;
+    access_log /var/log/nginx/{{.SiteName}}.access.log;
+    error_log  /var/log/nginx/{{.SiteName}}.error.log;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:{{.FastcgiSocket}};
+        fastcgi_index index.php;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
