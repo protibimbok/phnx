@@ -42,6 +42,12 @@ func runPHPMyAdmin(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// 0. Ensure a MySQL/MariaDB server is installed, running, and has the
+	// application user configured (prompting for any needed credentials).
+	if err := ensureDatabaseServer(cfg); err != nil {
+		return err
+	}
+
 	installDir := filepath.Join(config.Dir(), "tools", "phpmyadmin")
 	tmpDir := filepath.Join(installDir, "tmp")
 
@@ -147,6 +153,11 @@ func SetRegisterFunc(fn func(subdomain, path, siteType, phpVersion string, port 
 }
 
 func renderPMAConfig(cfg *config.Config, blowfish, tmpDir string) string {
+	// Empty-password logins (handy for local dev) require AllowNoPassword.
+	allowNoPassword := "false"
+	if cfg.MySQL.Password == "" {
+		allowNoPassword = "true"
+	}
 	return fmt.Sprintf(`<?php
 $cfg['blowfish_secret'] = '%s';
 $i = 0;
@@ -156,7 +167,7 @@ $cfg['Servers'][$i]['host'] = '%s';
 $cfg['Servers'][$i]['port'] = %d;
 $cfg['Servers'][$i]['connect_type'] = 'tcp';
 $cfg['Servers'][$i]['compress'] = false;
-$cfg['Servers'][$i]['AllowNoPassword'] = false;
+$cfg['Servers'][$i]['AllowNoPassword'] = %s;
 $cfg['UploadDir'] = '';
 $cfg['SaveDir'] = '';
 $cfg['TempDir'] = '%s';
@@ -164,6 +175,7 @@ $cfg['TempDir'] = '%s';
 		blowfish,
 		cfg.MySQL.Host,
 		cfg.MySQL.Port,
+		allowNoPassword,
 		tmpDir,
 	)
 }
