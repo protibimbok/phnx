@@ -19,12 +19,12 @@ func SetFS(f fs.FS) {
 }
 
 type TemplateData struct {
-	Port           int
-	ServerName     string
-	RootDir        string
-	SiteName       string
-	PHPVersion     string
-	FastcgiSocket  string
+	Port          int
+	ServerName    string
+	RootDir       string
+	SiteName      string
+	PHPVersion    string
+	FastcgiSocket string
 }
 
 func RenderTemplate(siteType string, data TemplateData) (string, error) {

@@ -49,14 +49,20 @@ func runInit(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("getting cwd: %w", err)
 	}
 
-	// 1. Resolve subdomain
+	// 1. Resolve subdomain. A subdomain is always required; when not given as
+	// an argument, prompt with the directory name as the default.
+	defaultName := sanitizeSubdomain(filepath.Base(cwd))
 	subdomain := ""
 	if len(args) > 0 {
 		subdomain = args[0]
 	} else {
-		subdomain = filepath.Base(cwd)
+		subdomain, err = ui.AskText("Subdomain", defaultName, defaultName)
+		if err != nil {
+			return err
+		}
 	}
 	subdomain = sanitizeSubdomain(subdomain)
+	domain := subdomain + "." + cfg.TLD
 
 	// 2. Resolve PHP version: .php-version file → --php flag → config default
 	phpVersion := resolvePhpVersion(cwd, cfg)
@@ -85,18 +91,24 @@ func runInit(_ *cobra.Command, args []string) error {
 	if cfg.FindSite(subdomain) != nil {
 		return fmt.Errorf("subdomain %q is already registered", subdomain)
 	}
-	if exists, _ := hosts.HasEntry(subdomain + "." + cfg.TLD); exists {
-		return fmt.Errorf("domain %s.%s already exists in /etc/hosts", subdomain, cfg.TLD)
+	if exists, _ := hosts.HasEntry(domain); exists {
+		return fmt.Errorf("domain %s already exists in /etc/hosts", domain)
 	}
 
-	// 5. Check port not already in use
-	for _, s := range cfg.Sites {
-		if s.Port == initPort && s.Subdomain != subdomain {
-			return fmt.Errorf("port %d is already used by site %q", initPort, s.Subdomain)
+	// 5. Check port not already in use.
+	// Sites default to 80 (and 443) and are served via name-based virtual
+	// hosting, so many sites can share those ports with different domains.
+	// A port conflict only matters when a special, explicit port is requested
+	// (e.g. remote view subdomains served locally).
+	if initPort != 80 && initPort != 443 {
+		for _, s := range cfg.Sites {
+			if s.Port == initPort && s.Subdomain != subdomain {
+				return fmt.Errorf("port %d is already used by site %q", initPort, s.Subdomain)
+			}
 		}
 	}
 
-	ui.Header(fmt.Sprintf("Initializing %s.%s", subdomain, cfg.TLD))
+	ui.Header(fmt.Sprintf("Initializing %s", domain))
 	ui.Info(fmt.Sprintf("Path: %s", cwd))
 	ui.Info(fmt.Sprintf("Type: %s | PHP: %s | Port: %d", siteType, phpVersion, initPort))
 
@@ -128,7 +140,6 @@ func runInit(_ *cobra.Command, args []string) error {
 	}
 
 	// 9. Write nginx config
-	domain := subdomain + "." + cfg.TLD
 	tmplData := nginx.TemplateData{
 		Port:          initPort,
 		ServerName:    domain,
