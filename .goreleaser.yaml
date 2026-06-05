@@ -41,28 +41,6 @@ changelog:
       - Merge pull request
       - Merge branch
 
-# ── Homebrew Cask ────────────────────────────────────────────────────────────
-# Requires: HOMEBREW_TAP_GITHUB_TOKEN secret with write access to homebrew-tap repo
-homebrew_casks:
-  - name: phnx
-    homepage: https://github.com/protibimbok/phnx
-    description: PHP + Nginx local development environment manager
-    license: MIT
-    binaries:
-      - phnx
-    repository:
-      owner: protibimbok
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/phnx"]
-          end
 
 # ── AUR (Arch Linux) ─────────────────────────────────────────────────────────
 # Requires: AUR_KEY secret (SSH private key registered on aur.archlinux.org)
@@ -71,7 +49,7 @@ aurs:
     homepage: https://github.com/protibimbok/phnx
     description: PHP + Nginx local development environment manager
     maintainers:
-      - "Saad Khan <sakib.saad.khan@gmail.com>"
+      - "Saad <sakib.saad.khan@gmail.com>"
     license: MIT
     private_key: "{{ .Env.AUR_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/phnx-bin.git"
@@ -92,7 +70,7 @@ nfpms:
     package_name: phnx
     homepage: https://github.com/protibimbok/phnx
     description: PHP + Nginx local development environment manager
-    maintainer: Saad Khan <sakib.saad.khan@gmail.com>
+    maintainer: Saad <sakib.saad.khan@gmail.com>
     license: MIT
     formats:
       - deb

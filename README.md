@@ -9,22 +9,27 @@ Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and macOS (Homebrew).
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew tap protibimbok/tap
+brew tap protibimbok/pkg-dist
 brew install phnx
 ```
 
 ### apt (Debian / Ubuntu)
 
 ```bash
-# Add the repository
-echo "deb [trusted=yes] https://protibimbok.github.io/phnx/apt /" \
-  | sudo tee /etc/apt/sources.list.d/phnx.list
+# One-time: install the signing key
+curl -fsSL \
+  https://github.com/protibimbok/pkg-dist/raw/master/public.gpg \
+  | sudo gpg --dearmor \
+  -o /usr/share/keyrings/protibimbok.gpg
+
+# One-time: add the repository
+echo "deb [signed-by=/usr/share/keyrings/protibimbok.gpg] \
+  https://protibimbok.github.io/pkg-dist/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/protibimbok.list
 
 sudo apt update
 sudo apt install phnx
 ```
-
-> For a verified install with GPG signing, see [GPG signing](#gpg-signing-optional).
 
 ### pacman / AUR (Arch Linux)
 
@@ -231,25 +236,15 @@ Requires Go (see `go.mod` for the minimum version).
 
 ## Release setup (for maintainers)
 
-### Required GitHub secrets
+Homebrew and apt distribution are managed centrally in [protibimbok/pkg-dist](https://github.com/protibimbok/pkg-dist). This repo only builds binaries and publishes GitHub Releases.
+
+### Required GitHub secrets (this repo)
 
 | Secret | Purpose | Required |
 |--------|---------|----------|
-| `GITHUB_TOKEN` | Create releases, push to gh-pages | Auto-provided |
-| `HOMEBREW_TAP_GITHUB_TOKEN` | Push formula to homebrew-tap repo | For Homebrew |
+| `GITHUB_TOKEN` | Create GitHub Releases | Auto-provided |
+| `PKG_DIST_TOKEN` | Trigger pkg-dist update after release | For Homebrew + apt |
 | `AUR_KEY` | SSH private key for AUR updates | For AUR |
-| `GPG_PRIVATE_KEY` | Sign apt repo Release file | For signed apt |
-| `GPG_PASSPHRASE` | Passphrase for GPG key | For signed apt |
-
-Publishers whose secrets are absent are skipped automatically by the release workflow.
-
-### One-time setup
-
-**Homebrew tap** — create a repo named `homebrew-tap` in your GitHub account. The release workflow pushes the formula automatically.
-
-**AUR** — [register an account](https://aur.archlinux.org/register/) on aur.archlinux.org, upload your SSH public key, then add the private key as the `AUR_KEY` secret.
-
-**apt repo** — the workflow maintains a GitHub Pages branch (`gh-pages`) with an apt repo under `/apt`. Create the `gh-pages` branch and enable Pages on it in repo Settings → Pages.
 
 ### Creating a release
 
@@ -258,24 +253,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The release workflow builds binaries for Linux/macOS × amd64/arm64, publishes them to GitHub Releases, updates the Homebrew formula and AUR package, and pushes new `.deb` files to the apt repo.
+The release workflow builds binaries, publishes to GitHub Releases, updates AUR, and notifies pkg-dist to update Homebrew casks and the apt repository.
 
-### GPG signing (optional)
-
-Signed apt repos prevent "untrusted repository" warnings. Generate a key and add it to GitHub secrets:
-
-```bash
-gpg --full-generate-key
-gpg --armor --export-secret-key you@example.com | base64 -w0
-# Paste output as GPG_PRIVATE_KEY secret
-```
-
-Users install the public key once:
-
-```bash
-curl -fsSL https://protibimbok.github.io/phnx/apt/Release.gpg \
-  | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/phnx.gpg
-```
+See [pkg-dist](https://github.com/protibimbok/pkg-dist) for signing keys, apt repo setup, and GitHub Pages configuration.
 
 ---
 

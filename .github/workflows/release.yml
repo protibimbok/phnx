@@ -7,14 +7,10 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,34 +21,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Determine which publishers to skip based on available secrets
       - name: Resolve goreleaser args
         id: args
         env:
-          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           AUR_KEY_VAL: ${{ secrets.AUR_KEY }}
         run: |
           ARGS="release --clean"
-          [ -z "$HOMEBREW_TOKEN" ] && ARGS="$ARGS --skip=homebrew"
-          [ -z "$AUR_KEY_VAL" ]    && ARGS="$ARGS --skip=aurs"
+          [ -z "$AUR_KEY_VAL" ] && ARGS="$ARGS --skip=aurs"
           echo "args=$ARGS" >> "$GITHUB_OUTPUT"
-
-      - name: Detect GPG signing
-        id: gpg_check
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          if [ -n "${GPG_PRIVATE_KEY}" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Import GPG key (optional, for apt repo signing)
-        id: gpg
-        if: steps.gpg_check.outputs.present == 'true'
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@v6
@@ -61,54 +37,22 @@ jobs:
           args: ${{ steps.args.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
 
       - name: Get tag
         id: tag
         run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
-      # ---------------------------------------------------------------
-      # apt repository (GitHub Pages)
-      # ---------------------------------------------------------------
-      - name: Install apt-ftparchive
-        run: sudo apt-get install -y apt-utils
-
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update apt repo
+      - name: Trigger pkg-dist update
         env:
-          GPG_KEY_ID: ${{ steps.gpg.outputs.keyid }}
+          PKG_DIST_TOKEN: ${{ secrets.PKG_DIST_TOKEN }}
         run: |
-          set -e
-          POOL="gh-pages/apt/pool/main"
-          mkdir -p "$POOL"
-
-          # Copy new .deb files
-          cp dist/*.deb "$POOL/" 2>/dev/null || true
-
-          cd gh-pages/apt
-          apt-ftparchive packages pool/main > Packages
-          gzip -kf Packages
-          apt-ftparchive release . > Release
-
-          if [ -n "$GPG_KEY_ID" ]; then
-            gpg --default-key "$GPG_KEY_ID" --armor --detach-sign --sign \
-              -o Release.gpg Release
-            gpg --default-key "$GPG_KEY_ID" --clearsign \
-              -o InRelease Release
+          if [ -z "${PKG_DIST_TOKEN}" ]; then
+            echo "PKG_DIST_TOKEN not configured; skipping pkg-dist trigger"
+            exit 0
           fi
-
-      - name: Push apt repo to gh-pages
-        run: |
-          cd gh-pages
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add apt/
-          git diff --cached --quiet || git commit -m "apt: add ${{ steps.tag.outputs.tag }}"
-          git push
+          curl -fsSL -X POST \
+            -H "Authorization: token ${PKG_DIST_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/protibimbok/pkg-dist/dispatches \
+            -d "{\"event_type\":\"release-published\",\"client_payload\":{\"package\":\"phnx\",\"tag\":\"${{ steps.tag.outputs.tag }}\"}}"
