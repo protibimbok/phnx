@@ -33,7 +33,7 @@ Usage:
   curl -fsSL ... | bash -s -- [options]
 
 Options:
-  -d, --install-dir <dir>   Install directory (default: ~/.local/bin, or /usr/local/bin)
+  -d, --install-dir <dir>   Install directory (default: /usr/local/bin, or ~/.local/bin)
   -r, --version <tag>       Release tag to install (default: latest)
       --force-binary        Skip Homebrew on macOS and download the binary
       --skip-path-hint      Do not print PATH setup instructions
@@ -103,11 +103,11 @@ default_install_dir() {
       if [ -d /usr/local/bin ] && [ -w /usr/local/bin ]; then
         printf '/usr/local/bin\n'
       else
-        printf '%s\n' "${HOME}/.local/bin"
+        printf '/usr/local/bin\n'
       fi
       ;;
     *)
-      printf '%s\n' "${HOME}/.local/bin"
+      printf '/usr/local/bin\n'
       ;;
   esac
 }

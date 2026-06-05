@@ -9,13 +9,13 @@ Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL, Alpine) and macOS (Homebrew).
 ### Quick install (Linux / macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/master/scripts/install.sh | bash
 ```
 
-Installs to `~/.local/bin` by default (no sudo). Override the location:
+To install into `~/.local/bin` (no sudo). Override the location:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/main/scripts/install.sh | bash -s -- --install-dir /usr/local/bin
+curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/master/scripts/install.sh | bash -s -- --install-dir ~/.local/bin
 ```
 
 Then run `phnx configure` to finish setup.
