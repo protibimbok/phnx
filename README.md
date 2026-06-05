@@ -2,9 +2,23 @@
 
 PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, and helper tools (Composer, WP-CLI, phpMyAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
 
-Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL) and macOS (Homebrew).
+Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL, Alpine) and macOS (Homebrew).
 
 ## Installation
+
+### Quick install (Linux / macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/main/scripts/install.sh | bash
+```
+
+Installs to `~/.local/bin` by default (no sudo). Override the location:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/main/scripts/install.sh | bash -s -- --install-dir /usr/local/bin
+```
+
+Then run `phnx configure` to finish setup.
 
 ### Homebrew (macOS / Linux)
 
@@ -54,14 +68,6 @@ sudo rpm -i phnx_linux_amd64.rpm
 sudo apk add --allow-untrusted phnx_linux_amd64.apk
 ```
 
-### Shell installer (Linux / macOS)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/protibimbok/phnx/main/scripts/install.sh | bash
-```
-
-Installs to `/usr/local/bin` by default. Override with `INSTALL_DIR=/your/path`.
-
 ### go install
 
 ```bash
@@ -74,7 +80,7 @@ go install github.com/protibimbok/phnx@latest
 
 - **nginx** — installed and present at `/etc/nginx` (Linux) or the Homebrew prefix (macOS).
 - **PHP-FPM** — either an existing install or let `phnx configure` install one for you.
-- **MySQL/MariaDB** — only required for WordPress scaffolding and phpMyAdmin.
+- **MySQL/MariaDB** — only required for WordPress scaffolding and phpMyAdmin. Run `phnx setup database` to install and configure it.
 
 `phnx` escalates to `sudo` automatically for privileged steps (editing `/etc/nginx`, `/etc/hosts`, installing packages, managing services), so run it as your regular user — not as root.
 
@@ -173,8 +179,21 @@ Install optional helper tools. Downloads are checksum-verified.
 ```bash
 phnx setup composer      # install Composer to /usr/local/bin/composer
 phnx setup wpcli         # install WP-CLI to /usr/local/bin/wp
+phnx setup database      # install MariaDB (if needed) and configure the phnx DB user
 phnx setup phpmyadmin    # install phpMyAdmin as an internal site → http://phpmyadmin.<tld>
 ```
+
+#### `phnx setup database`
+
+Prepares MySQL/MariaDB for WordPress scaffolding and phpMyAdmin. Idempotent — safe to re-run.
+
+1. Detects an existing MySQL or MariaDB server.
+2. If none is found, offers to install MariaDB (via Homebrew, pacman, apt, or dnf).
+3. Enables and starts the database service.
+4. Prompts for the root password (blank = unix-socket auth on a fresh install).
+5. Creates or updates the phnx application user (default `phnx`) and saves credentials to `~/.phnx/config.json`.
+
+`phnx setup phpmyadmin` runs this automatically if the database is not configured yet.
 
 ---
 
