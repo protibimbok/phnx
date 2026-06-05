@@ -111,6 +111,11 @@ func NginxWebUser() string {
 	if IsArch() {
 		return "http"
 	}
+	if IsFedora() {
+		// The Fedora/RHEL nginx RPM runs as user/group "nginx"; there is no
+		// www-data account on these distros.
+		return "nginx"
+	}
 	return "www-data"
 }
 

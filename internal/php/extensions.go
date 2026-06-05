@@ -27,6 +27,16 @@ var commentedExtensionRe = regexp.MustCompile(`^(\s*);\s*((?:zend_)?extension)\s
 // that are already active are left untouched, so re-running enables nothing new.
 // The caller is responsible for (re)starting the FPM service to pick up changes.
 func EnableExtensions(r ResolvedPHP) ([]string, error) {
+	// On Fedora/RHEL, Remi packages each extension separately and ships an
+	// already-active, load-ordered drop-in under /etc/opt/remi/phpXX/php.d/
+	// (e.g. 20-mysqlnd.ini before 30-mysqli.ini). PHP parses the main php.ini
+	// before scanning php.d, so uncommenting "extension=mysqli" in php.ini loads
+	// it ahead of mysqlnd and crashes with "undefined symbol:
+	// mysqlnd_global_stats". Extension enablement is the packages' job here.
+	if system.IsFedora() {
+		return nil, nil
+	}
+
 	files := iniFiles(r)
 	if len(files) == 0 {
 		return nil, nil

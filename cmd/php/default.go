@@ -5,7 +5,6 @@ import (
 
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/php"
-	"github.com/protibimbok/phnx/internal/system"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +45,7 @@ func runDefault(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := system.Run("ln", "-sf", resolved.Binary, "/usr/local/bin/php"); err != nil {
+	if err := php.LinkDefaultBinary(resolved.Binary); err != nil {
 		ui.Warn(fmt.Sprintf("could not update /usr/local/bin/php symlink: %v", err))
 	}
 

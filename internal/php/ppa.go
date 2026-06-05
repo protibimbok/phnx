@@ -117,7 +117,30 @@ func ensureRemiRepo() error {
 		return nil
 	}
 	fmt.Println("Adding Remi PHP repository...")
-	return system.Run("dnf", "install", "-y", "https://rpms.remirepo.net/enterprise/remi-release-9.rpm")
+
+	versionID := system.OSReleaseValue("VERSION_ID")
+	if versionID == "" {
+		return fmt.Errorf("could not determine OS version from /etc/os-release")
+	}
+
+	// Fedora has its own Remi stream keyed by the Fedora release number (e.g. 40,
+	// 41). The Enterprise Linux stream (remi-release-9.rpm) must NOT be used on
+	// Fedora — it depends on redhat-release/epel-release/system-release, none of
+	// which exist there.
+	if system.GetDistro() == system.DistroFedora {
+		url := fmt.Sprintf("https://rpms.remirepo.net/fedora/remi-release-%s.rpm", versionID)
+		return system.Run("dnf", "install", "-y", url)
+	}
+
+	// RHEL / CentOS Stream / derivatives use the Enterprise Linux stream, keyed by
+	// the OS major version. remi-release depends on EPEL, so ensure that first.
+	major, _, _ := strings.Cut(versionID, ".")
+	if err := system.Run("dnf", "install", "-y",
+		fmt.Sprintf("https://dl.fedoraproject.org/pub/epel/epel-release-latest-%s.noarch.rpm", major)); err != nil {
+		return fmt.Errorf("installing EPEL (required by Remi): %w", err)
+	}
+	url := fmt.Sprintf("https://rpms.remirepo.net/enterprise/remi-release-%s.rpm", major)
+	return system.Run("dnf", "install", "-y", url)
 }
 
 // archlinuxCNAvailable reports whether /etc/pacman.conf already has [archlinuxcn].

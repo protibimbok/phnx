@@ -100,9 +100,44 @@ func DetectInstalled() ([]string, error) {
 		return detectArch()
 	case system.IsDebian():
 		return detectDebian()
+	case system.IsFedora():
+		return detectFedora()
 	default:
 		return detectGeneric()
 	}
+}
+
+// fedoraFPMPkgRe matches Remi software-collection FPM package names, e.g.
+// "php84-php-fpm" → tag "84".
+var fedoraFPMPkgRe = regexp.MustCompile(`^php(\d+)-php-fpm$`)
+
+// detectFedora lists installed Remi SCL php-fpm packages (php84-php-fpm, …) and
+// maps the version tag back to major.minor (e.g. "84" → "8.4"). The SCL binaries
+// live under /opt/remi and are not on PATH, so a PATH probe (detectGeneric) would
+// miss them.
+func detectFedora() ([]string, error) {
+	out, err := exec.Command("bash", "-c",
+		`rpm -qa --qf '%{NAME}\n' 'php*-php-fpm' 2>/dev/null`,
+	).Output()
+	if err != nil {
+		return nil, nil
+	}
+	var versions []string
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
+		m := fedoraFPMPkgRe.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil {
+			continue
+		}
+		tag := m[1] // e.g. "84"
+		if len(tag) < 2 {
+			continue
+		}
+		v := tag[:len(tag)-1] + "." + tag[len(tag)-1:]
+		if versionRe.MatchString(v) {
+			versions = append(versions, v)
+		}
+	}
+	return versions, nil
 }
 
 func detectDebian() ([]string, error) {

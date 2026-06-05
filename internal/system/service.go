@@ -92,6 +92,10 @@ func PHPFPMServiceName(version string) string {
 		tag := ArchVersionTag(version)
 		return fmt.Sprintf("php%s-fpm", tag)
 	}
+	if IsFedora() {
+		// Remi software collections: php82-php-fpm.service
+		return fmt.Sprintf("php%s-php-fpm", ArchVersionTag(version))
+	}
 	// Debian/Ubuntu ondrej PPA
 	return fmt.Sprintf("php%s-fpm", version)
 }

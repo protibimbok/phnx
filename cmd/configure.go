@@ -197,6 +197,14 @@ func runConfigure(_ *cobra.Command, _ []string) error {
 			// (re)started below so the new modules are picked up.
 			enablePHPExtensions(resolved)
 
+			// Expose the default PHP as the `php` command. On Fedora the Remi
+			// SCL binary isn't on PATH, so without this `php` is not found.
+			if err := php.LinkDefaultBinary(resolved.Binary); err != nil {
+				ui.Warn(fmt.Sprintf("Could not link php command: %v", err))
+			} else {
+				ui.Success(fmt.Sprintf("php command linked to /usr/local/bin/php (PHP %s)", resolved.Version))
+			}
+
 			if resolved.Tagged {
 				if err := fpm.WritePool(cfg.DefaultPHP, cfg.RealUser, cfg.RealGroup); err != nil {
 					return fmt.Errorf("writing FPM pool: %w", err)

@@ -84,7 +84,7 @@ func detectMacFPMSock(prefix, version string) string {
 		if err != nil {
 			continue
 		}
-		for _, line := range strings.Split(string(out), "\n") {
+		for line := range strings.SplitSeq(string(out), "\n") {
 			if strings.Contains(line, "listen =>") {
 				parts := strings.SplitN(line, "=>", 2)
 				if len(parts) == 2 {
@@ -114,6 +114,10 @@ func linuxFpmPoolDir(version string) string {
 	if IsArch() {
 		return fmt.Sprintf("/etc/php%s/php-fpm.d", ArchVersionTag(version))
 	}
+	if IsFedora() {
+		// Remi software collections: /etc/opt/remi/php82/php-fpm.d
+		return fmt.Sprintf("/etc/opt/remi/php%s/php-fpm.d", ArchVersionTag(version))
+	}
 	return fmt.Sprintf("/etc/php/%s/fpm/pool.d", version)
 }
 
@@ -121,6 +125,14 @@ func linuxFpmPoolDir(version string) string {
 func linuxPhpBinary(version string) string {
 	if IsArch() {
 		return fmt.Sprintf("/usr/bin/php%s", ArchVersionTag(version))
+	}
+	if IsFedora() {
+		// Remi software collections install the CLI under the SCL prefix, not in
+		// the default PATH. /usr/bin/php only exists if the separate
+		// php<tag>-syspaths package is installed (which makes it the system
+		// default and conflicts with parallel versions), so use the canonical
+		// per-version path: /opt/remi/php82/root/usr/bin/php.
+		return fmt.Sprintf("/opt/remi/php%s/root/usr/bin/php", ArchVersionTag(version))
 	}
 	return fmt.Sprintf("/usr/bin/php%s", version)
 }
@@ -142,6 +154,12 @@ func linuxFpmSock(version string) string {
 			}
 		}
 		return fmt.Sprintf("/run/php%s-fpm.sock", tag)
+	}
+	if IsFedora() {
+		// Remi software collections ship a per-version run dir created by the
+		// php<tag>-php-fpm package; the phnx pool listens there.
+		tag := ArchVersionTag(version)
+		return fmt.Sprintf("/var/opt/remi/php%s/run/php-fpm/phnx.sock", tag)
 	}
 	return fmt.Sprintf("/run/php/php%s-fpm.sock", version)
 }

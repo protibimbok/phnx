@@ -6,5 +6,5 @@ import (
 
 var SetupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Install helper tools (composer, wp-cli, phpmyadmin, nodejs)",
+	Short: "Install helper tools (composer, wp-cli, database, phpmyadmin)",
 }

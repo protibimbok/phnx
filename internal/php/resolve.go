@@ -41,3 +41,11 @@ func ResolvePHP(cfg *config.Config, version string) (ResolvedPHP, error) {
 		Binary:  system.Platform.PhpBinaryPath(version),
 	}, nil
 }
+
+// LinkDefaultBinary points /usr/local/bin/php at the given PHP binary so the
+// `php` command resolves to the default version. This matters most on Fedora,
+// where Remi software-collection binaries live under /opt/remi and are never on
+// PATH; on Debian/Arch it simply pins `php` to the chosen version.
+func LinkDefaultBinary(binary string) error {
+	return system.Run("ln", "-sf", binary, "/usr/local/bin/php")
+}
