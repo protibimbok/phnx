@@ -15,6 +15,8 @@ RELEASE="latest"
 INSTALL_DIR="${INSTALL_DIR:-}"
 SKIP_BREW="false"
 SKIP_PATH_HINT="false"
+PKG_DIST_TAP="protibimbok/pkg-dist"
+PKG_DIST_URL="https://github.com/protibimbok/pkg-dist"
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -191,9 +193,10 @@ install_via_brew() {
   command -v brew >/dev/null 2>&1 || return 1
 
   info "Installing via Homebrew..."
-  if ! brew tap | grep -qx 'protibimbok/pkg-dist'; then
-    brew tap protibimbok/pkg-dist
+  if ! brew tap | grep -qx "${PKG_DIST_TAP}"; then
+    brew tap "${PKG_DIST_TAP}" "${PKG_DIST_URL}"
   fi
+  brew trust "${PKG_DIST_TAP}"
   brew install phnx
   INSTALL_DIR="$(brew --prefix)/bin"
   return 0

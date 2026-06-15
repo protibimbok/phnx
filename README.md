@@ -22,8 +22,11 @@ Then run `phnx configure` to finish setup.
 
 ### Homebrew (macOS / Linux)
 
+Homebrew 6.0+ requires trusting third-party taps before their code is loaded:
+
 ```bash
-brew tap protibimbok/pkg-dist
+brew tap protibimbok/pkg-dist https://github.com/protibimbok/pkg-dist
+brew trust protibimbok/pkg-dist
 brew install phnx
 ```
 
