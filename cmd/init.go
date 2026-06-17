@@ -113,26 +113,9 @@ func runInit(_ *cobra.Command, args []string) error {
 	ui.Info(fmt.Sprintf("Path: %s", cwd))
 	ui.Info(fmt.Sprintf("Type: %s | PHP: %s | Port: %d", siteType, phpVersion, initPort))
 
-	// 6. Laravel scaffolding
-	if siteType == "laravel" && isDirEmpty(cwd) {
-		scaffold, _ := ui.Confirm("Directory is empty. Create a new Laravel project?", true)
-		if scaffold {
-			ui.Info("Running composer create-project laravel/laravel ...")
-			cmd := exec.Command("composer", "create-project", "laravel/laravel", ".")
-			cmd.Dir = cwd
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("composer create-project: %w", err)
-			}
-		}
-	}
-
-	// 7. WordPress scaffolding
-	if siteType == "wordpress" && isDirEmpty(cwd) {
-		if err := scaffoldWordPress(cwd, cfg); err != nil {
-			return err
-		}
+	// 6–7. Laravel / WordPress scaffolding
+	if err := maybeScaffold(siteType, cwd, cfg); err != nil {
+		return err
 	}
 
 	// 8. Ensure FPM is running for chosen PHP version
@@ -224,12 +207,16 @@ func isDirEmpty(path string) bool {
 	return len(entries) == 0
 }
 
-func scaffoldWordPress(cwd string, cfg *config.Config) error {
-	ui.Info("Downloading WordPress...")
+func scaffoldWordPress(cwd string, cfg *config.Config, alongside bool) error {
+	if alongside {
+		ui.Info("Downloading WordPress (merging into existing directory)...")
+	} else {
+		ui.Info("Downloading WordPress...")
+	}
 
 	// Download latest WordPress
 	wpCmd := exec.Command("bash", "-c",
-		fmt.Sprintf(`cd %q && curl -O https://wordpress.org/latest.zip && unzip -q latest.zip && mv wordpress/* . && rmdir wordpress && rm latest.zip`, cwd))
+		fmt.Sprintf(`cd %q && curl -O https://wordpress.org/latest.zip && unzip -oq latest.zip && cp -a wordpress/. . && rm -rf wordpress latest.zip`, cwd))
 	wpCmd.Stdout = os.Stdout
 	wpCmd.Stderr = os.Stderr
 	if err := wpCmd.Run(); err != nil {
