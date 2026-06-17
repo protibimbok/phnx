@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/protibimbok/phnx/internal/config"
+	"github.com/protibimbok/phnx/internal/database"
 	"github.com/protibimbok/phnx/internal/fpm"
 	"github.com/protibimbok/phnx/internal/hosts"
 	"github.com/protibimbok/phnx/internal/nginx"
@@ -240,12 +241,20 @@ func scaffoldWordPress(cwd string, cfg *config.Config) error {
 		return err
 	}
 
-	// Create database
-	createDB := fmt.Sprintf(
-		"mysql -h %s -P %d -u %s -p%s -e \"CREATE DATABASE IF NOT EXISTS `%s`;\"",
-		cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.User, cfg.MySQL.Password, dbName,
-	)
-	if out, err := exec.Command("bash", "-c", createDB).CombinedOutput(); err != nil {
+	// Create database (exec directly — backticks in SQL must not go through a shell)
+	mysqlArgs := []string{
+		"-h", cfg.MySQL.Host,
+		"-P", fmt.Sprintf("%d", cfg.MySQL.Port),
+		"-u", cfg.MySQL.User,
+	}
+	if cfg.MySQL.Password != "" {
+		mysqlArgs = append(mysqlArgs, "-p"+cfg.MySQL.Password)
+	}
+	mysqlArgs = append(mysqlArgs, "-e", fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", dbName))
+	client, err := database.ClientBinary()
+	if err != nil {
+		ui.Warn(fmt.Sprintf("Could not create database %s: %v", dbName, err))
+	} else if out, err := exec.Command(client, mysqlArgs...).CombinedOutput(); err != nil {
 		ui.Warn(fmt.Sprintf("Could not create database %s: %v\n%s", dbName, err, string(out)))
 	} else {
 		ui.Success(fmt.Sprintf("Database %s created", dbName))
