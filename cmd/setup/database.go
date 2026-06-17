@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/protibimbok/phnx/internal/config"
+	"github.com/protibimbok/phnx/internal/database"
 	"github.com/protibimbok/phnx/internal/system"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
@@ -203,15 +204,20 @@ func buildUserSQL(user, pass string) string {
 // it relies on unix-socket auth, escalating with sudo on Linux when not already
 // running as root.
 func runRootSQL(rootPass, sql string) error {
+	client, err := database.ClientBinary()
+	if err != nil {
+		return err
+	}
+
 	var name string
 	var args []string
 	switch {
 	case rootPass != "":
-		name, args = "mysql", []string{"-u", "root", "-p" + rootPass}
+		name, args = client, []string{"-u", "root", "-p" + rootPass}
 	case runtime.GOOS == "darwin", os.Getuid() == 0:
-		name, args = "mysql", []string{"-u", "root"}
+		name, args = client, []string{"-u", "root"}
 	default:
-		name, args = "sudo", []string{"mysql", "-u", "root"}
+		name, args = "sudo", []string{client, "-u", "root"}
 	}
 
 	cmd := exec.Command(name, args...)
