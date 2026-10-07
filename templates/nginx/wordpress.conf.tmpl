@@ -1,6 +1,5 @@
 server {
-    listen {{.Port}};
-    listen [::]:{{.Port}};
+{{template "listen" .}}
     server_name {{.ServerName}};
     root {{.RootDir}};
     index index.php index.html;
@@ -38,3 +37,4 @@ server {
         deny all;
     }
 }
+{{template "redirect" .}}

@@ -12,6 +12,8 @@ import (
 	"github.com/protibimbok/phnx/internal/hosts"
 	"github.com/protibimbok/phnx/internal/nginx"
 	"github.com/protibimbok/phnx/internal/php"
+	sitepkg "github.com/protibimbok/phnx/internal/site"
+	"github.com/protibimbok/phnx/internal/ssl"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -21,6 +23,7 @@ var (
 	initType      string
 	initPHP       string
 	initSubdomain string
+	initSecure    bool
 )
 
 // InitCmd is the `phnx init` command, registered by cmd/root.go.
@@ -40,12 +43,18 @@ func init() {
 	InitCmd.Flags().StringVar(&initType, "type", "", "Site type: laravel, wordpress, php")
 	InitCmd.Flags().StringVar(&initPHP, "php", "", "PHP version to use")
 	InitCmd.Flags().StringVar(&initSubdomain, "subdomain", "", "Subdomain to register (defaults to the directory name)")
+	InitCmd.Flags().BoolVar(&initSecure, "secure", false, "Serve the site over HTTPS with a locally trusted certificate")
 }
 
-func runInit(_ *cobra.Command, args []string) error {
+func runInit(cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+
+	// A secure site listens on 443 unless the user picked a port explicitly.
+	if initSecure && !cmd.Flags().Changed("port") {
+		initPort = 443
 	}
 
 	cwd, err := resolveSiteDir(args)
@@ -102,7 +111,7 @@ func runInit(_ *cobra.Command, args []string) error {
 
 	ui.Header(fmt.Sprintf("Initializing %s", domain))
 	ui.Info(fmt.Sprintf("Path: %s", cwd))
-	ui.Info(fmt.Sprintf("Type: %s | PHP: %s | Port: %d", siteType, phpVersion, initPort))
+	ui.Info(fmt.Sprintf("Type: %s | PHP: %s | Port: %d | HTTPS: %t", siteType, phpVersion, initPort, initSecure))
 
 	if err := maybeScaffold(siteType, cwd, subdomain, resolved.Binary, cfg); err != nil {
 		return err
@@ -112,15 +121,24 @@ func runInit(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	tmplData := nginx.TemplateData{
-		Port:          initPort,
-		ServerName:    domain,
-		RootDir:       cwd,
-		SiteName:      subdomain,
-		PHPVersion:    phpVersion,
-		FastcgiSocket: resolved.Socket,
+	site := config.Site{
+		Subdomain: subdomain,
+		Path:      cwd,
+		Type:      siteType,
+		PHP:       phpVersion,
+		Port:      initPort,
+		Secure:    initSecure,
+		Internal:  false,
+		CreatedAt: time.Now(),
 	}
-	if err := nginx.WriteSiteConfig(cfg.NginxSitesDir, subdomain, siteType, tmplData); err != nil {
+
+	if initSecure {
+		if err := sitepkg.EnsureCertificate(subdomain, domain); err != nil {
+			return err
+		}
+	}
+
+	if err := sitepkg.WriteNginxConfig(cfg, site); err != nil {
 		return fmt.Errorf("writing nginx config: %w", err)
 	}
 	ui.Success(fmt.Sprintf("nginx config written: %s/%s.conf", cfg.NginxSitesDir, subdomain))
@@ -133,19 +151,11 @@ func runInit(_ *cobra.Command, args []string) error {
 	if err := nginx.Reload(); err != nil {
 		_ = hosts.Remove(domain)
 		_ = nginx.RemoveSiteConfig(cfg.NginxSitesDir, subdomain)
+		_ = ssl.RemoveCert(subdomain)
 		return fmt.Errorf("nginx reload failed — rolled back: %w", err)
 	}
 	ui.Success("nginx reloaded")
 
-	site := config.Site{
-		Subdomain: subdomain,
-		Path:      cwd,
-		Type:      siteType,
-		PHP:       phpVersion,
-		Port:      initPort,
-		Internal:  false,
-		CreatedAt: time.Now(),
-	}
 	cfg.AddSite(site)
 	if err := config.Save(cfg); err != nil {
 		return err

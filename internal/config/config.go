@@ -196,11 +196,12 @@ func (c *Config) SiteURL(subdomain string) string {
 	if s == nil {
 		return ""
 	}
-	if s.Port == 443 {
-		return "https://" + c.SitesDomain(subdomain)
+	scheme := "http"
+	if s.Secure {
+		scheme = "https"
 	}
-	if s.Port == 80 {
-		return "http://" + c.SitesDomain(subdomain)
+	if (s.Secure && s.Port == 443) || (!s.Secure && s.Port == 80) {
+		return scheme + "://" + c.SitesDomain(subdomain)
 	}
-	return fmt.Sprintf("http://%s:%d", c.SitesDomain(subdomain), s.Port)
+	return fmt.Sprintf("%s://%s:%d", scheme, c.SitesDomain(subdomain), s.Port)
 }

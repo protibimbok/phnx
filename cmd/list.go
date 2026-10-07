@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/fpm"
 	"github.com/protibimbok/phnx/internal/nginx"
 	"github.com/protibimbok/phnx/internal/php"
+	"github.com/protibimbok/phnx/internal/ssl"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -84,6 +86,15 @@ func siteStatus(cfg *config.Config, site config.Site) string {
 	// Check project directory
 	if _, err := os.Stat(site.Path); os.IsNotExist(err) {
 		issues = append(issues, "path missing")
+	}
+
+	// Check TLS certificate
+	if site.Secure {
+		if !ssl.CertExists(site.Subdomain) {
+			issues = append(issues, "certificate missing")
+		} else if exp, err := ssl.CertExpiry(site.Subdomain); err == nil && time.Now().After(exp) {
+			issues = append(issues, "certificate expired")
+		}
 	}
 
 	if len(issues) == 0 {

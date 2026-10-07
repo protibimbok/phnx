@@ -15,6 +15,7 @@ type Site struct {
 	Type      string    `json:"type"`
 	PHP       string    `json:"php"`
 	Port      int       `json:"port"`
+	Secure    bool      `json:"secure,omitempty"`
 	Internal  bool      `json:"internal"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -33,13 +34,13 @@ type PHPVersion struct {
 }
 
 type Config struct {
-	TLD           string      `json:"tld"`
-	NginxDir      string      `json:"nginx_dir"`
-	NginxSitesDir string      `json:"nginx_sites_dir"`
-	DefaultPHP    string      `json:"default_php"`
-	RealUser      string      `json:"real_user"`
-	RealGroup     string      `json:"real_group"`
-	MySQL         MySQLConfig `json:"mysql"`
-	Sites         []Site      `json:"sites"`
+	TLD           string       `json:"tld"`
+	NginxDir      string       `json:"nginx_dir"`
+	NginxSitesDir string       `json:"nginx_sites_dir"`
+	DefaultPHP    string       `json:"default_php"`
+	RealUser      string       `json:"real_user"`
+	RealGroup     string       `json:"real_group"`
+	MySQL         MySQLConfig  `json:"mysql"`
+	Sites         []Site       `json:"sites"`
 	PHPVersions   []PHPVersion `json:"php_versions"`
 }

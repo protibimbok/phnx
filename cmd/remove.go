@@ -8,6 +8,7 @@ import (
 	"github.com/protibimbok/phnx/internal/hosts"
 	"github.com/protibimbok/phnx/internal/nginx"
 	sitepkg "github.com/protibimbok/phnx/internal/site"
+	"github.com/protibimbok/phnx/internal/ssl"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -50,6 +51,7 @@ func runRemove(_ *cobra.Command, args []string) error {
 	ui.Info(fmt.Sprintf("Path:    %s", site.Path))
 	ui.Info(fmt.Sprintf("Type:    %s", site.Type))
 	ui.Info(fmt.Sprintf("PHP:     %s", site.PHP))
+	ui.Info(fmt.Sprintf("HTTPS:   %t", site.Secure))
 
 	ok, err := ui.Confirm(fmt.Sprintf("Remove %s?", domain), false)
 	if err != nil {
@@ -79,6 +81,15 @@ func runRemove(_ *cobra.Command, args []string) error {
 		ui.Warn(fmt.Sprintf("nginx reload: %v", err))
 	} else {
 		ui.Success("nginx reloaded")
+	}
+
+	// Remove TLS certificate
+	if site.Secure {
+		if err := ssl.RemoveCert(site.Subdomain); err != nil {
+			ui.Warn(fmt.Sprintf("removing certificate: %v", err))
+		} else {
+			ui.Success("TLS certificate removed")
+		}
 	}
 
 	// Remove from config

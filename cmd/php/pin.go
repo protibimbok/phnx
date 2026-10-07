@@ -7,6 +7,7 @@ import (
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/nginx"
 	"github.com/protibimbok/phnx/internal/php"
+	sitepkg "github.com/protibimbok/phnx/internal/site"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -66,20 +67,7 @@ func runPin(_ *cobra.Command, args []string) error {
 	}
 
 	// Regenerate nginx config
-	resolved, err := php.ResolvePHP(cfg, version)
-	if err != nil {
-		return err
-	}
-	domain := site.Subdomain + "." + cfg.TLD
-	tmplData := nginx.TemplateData{
-		Port:          site.Port,
-		ServerName:    domain,
-		RootDir:       site.Path,
-		SiteName:      site.Subdomain,
-		PHPVersion:    version,
-		FastcgiSocket: resolved.Socket,
-	}
-	if err := nginx.WriteSiteConfig(cfg.NginxSitesDir, site.Subdomain, site.Type, tmplData); err != nil {
+	if err := sitepkg.WriteNginxConfig(cfg, *site); err != nil {
 		return fmt.Errorf("regenerating nginx config: %w", err)
 	}
 

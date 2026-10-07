@@ -10,8 +10,38 @@ import (
 	"github.com/protibimbok/phnx/internal/hosts"
 	"github.com/protibimbok/phnx/internal/nginx"
 	"github.com/protibimbok/phnx/internal/php"
+	"github.com/protibimbok/phnx/internal/ssl"
 	"github.com/protibimbok/phnx/internal/system"
 )
+
+func TemplateData(cfg *config.Config, s config.Site) (nginx.TemplateData, error) {
+	resolved, err := php.ResolvePHP(cfg, s.PHP)
+	if err != nil {
+		return nginx.TemplateData{}, err
+	}
+	data := nginx.TemplateData{
+		Port:          s.Port,
+		ServerName:    cfg.SitesDomain(s.Subdomain),
+		RootDir:       s.Path,
+		SiteName:      s.Subdomain,
+		PHPVersion:    s.PHP,
+		FastcgiSocket: resolved.Socket,
+		Secure:        s.Secure,
+	}
+	if s.Secure {
+		data.CertPath = ssl.CertPath(s.Subdomain)
+		data.KeyPath = ssl.KeyPath(s.Subdomain)
+	}
+	return data, nil
+}
+
+func WriteNginxConfig(cfg *config.Config, s config.Site) error {
+	data, err := TemplateData(cfg, s)
+	if err != nil {
+		return err
+	}
+	return nginx.WriteSiteConfig(cfg.NginxSitesDir, s.Subdomain, s.Type, data)
+}
 
 // RegisterInternal registers an internal phnx-managed site (called from setup subcommands).
 func RegisterInternal(subdomain, path, siteType, phpVersion string, port int) error {
@@ -24,21 +54,17 @@ func RegisterInternal(subdomain, path, siteType, phpVersion string, port int) er
 		return nil // already registered
 	}
 
-	resolved, err := php.ResolvePHP(cfg, phpVersion)
-	if err != nil {
-		return err
-	}
-
 	domain := subdomain + "." + cfg.TLD
-	tmplData := nginx.TemplateData{
-		Port:          port,
-		ServerName:    domain,
-		RootDir:       path,
-		SiteName:      subdomain,
-		PHPVersion:    phpVersion,
-		FastcgiSocket: resolved.Socket,
+	s := config.Site{
+		Subdomain: subdomain,
+		Path:      path,
+		Type:      siteType,
+		PHP:       phpVersion,
+		Port:      port,
+		Internal:  true,
+		CreatedAt: time.Now(),
 	}
-	if err := nginx.WriteSiteConfig(cfg.NginxSitesDir, subdomain, siteType, tmplData); err != nil {
+	if err := WriteNginxConfig(cfg, s); err != nil {
 		return err
 	}
 	if err := hosts.Add(domain); err != nil {
@@ -48,15 +74,7 @@ func RegisterInternal(subdomain, path, siteType, phpVersion string, port int) er
 		return err
 	}
 
-	cfg.AddSite(config.Site{
-		Subdomain: subdomain,
-		Path:      path,
-		Type:      siteType,
-		PHP:       phpVersion,
-		Port:      port,
-		Internal:  true,
-		CreatedAt: time.Now(),
-	})
+	cfg.AddSite(s)
 	return config.Save(cfg)
 }
 
@@ -70,6 +88,7 @@ func Deregister(subdomain string) error {
 	_ = nginx.RemoveSiteConfig(cfg.NginxSitesDir, subdomain)
 	_ = hosts.Remove(domain)
 	_ = nginx.Reload()
+	_ = ssl.RemoveCert(subdomain)
 	cfg.RemoveSite(subdomain)
 	return config.Save(cfg)
 }

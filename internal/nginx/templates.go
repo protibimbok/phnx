@@ -9,6 +9,8 @@ import (
 
 var templateFS fs.FS
 
+const partialsName = "_partials.conf.tmpl"
+
 // SetFS initializes the embedded template filesystem (called from main).
 func SetFS(f fs.FS) {
 	sub, err := fs.Sub(f, "templates/nginx")
@@ -25,6 +27,13 @@ type TemplateData struct {
 	SiteName      string
 	PHPVersion    string
 	FastcgiSocket string
+	Secure        bool
+	CertPath      string
+	KeyPath       string
+}
+
+func (d TemplateData) RedirectHTTP() bool {
+	return d.Secure && d.Port == 443
 }
 
 func RenderTemplate(siteType string, data TemplateData) (string, error) {
@@ -38,8 +47,16 @@ func RenderTemplate(siteType string, data TemplateData) (string, error) {
 		return "", fmt.Errorf("reading template %s: %w", name, err)
 	}
 
-	tmpl, err := template.New(name).Parse(string(content))
+	partials, err := fs.ReadFile(templateFS, partialsName)
 	if err != nil {
+		return "", fmt.Errorf("reading template %s: %w", partialsName, err)
+	}
+
+	tmpl, err := template.New(name).Parse(string(partials))
+	if err != nil {
+		return "", fmt.Errorf("parsing template %s: %w", partialsName, err)
+	}
+	if _, err := tmpl.Parse(string(content)); err != nil {
 		return "", fmt.Errorf("parsing template %s: %w", name, err)
 	}
 

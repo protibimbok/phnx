@@ -1,0 +1,19 @@
+{{/* Shared blocks included by every site template. */}}
+{{define "listen"}}    listen {{.Port}}{{if .Secure}} ssl{{end}};
+    listen [::]:{{.Port}}{{if .Secure}} ssl{{end}};
+{{- if .Secure}}
+    ssl_certificate     {{.CertPath}};
+    ssl_certificate_key {{.KeyPath}};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+{{- end}}
+{{- end}}
+{{define "redirect"}}
+{{- if .RedirectHTTP}}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{.ServerName}};
+    return 301 https://$host$request_uri;
+}
+{{- end}}
+{{- end}}

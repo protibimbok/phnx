@@ -1,6 +1,5 @@
 server {
-    listen {{.Port}};
-    listen [::]:{{.Port}};
+{{template "listen" .}}
     server_name {{.ServerName}};
     root {{.RootDir}}/public;
     index index.php index.html;
@@ -28,3 +27,4 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 }
+{{template "redirect" .}}

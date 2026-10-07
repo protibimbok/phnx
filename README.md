@@ -132,6 +132,7 @@ phnx init ~/code/blog --subdomain blog   # explicit directory and subdomain
 phnx init --type wordpress      # laravel | wordpress | php
 phnx init --php 8.2             # use a specific PHP version
 phnx init --port 8080           # listen on a non-default port
+phnx init --secure              # serve over HTTPS (see `phnx secure`)
 ```
 
 - **Laravel** — if the directory is empty, offers to run `composer create-project laravel/laravel`.
@@ -148,6 +149,23 @@ Lists registered sites with a health check (nginx config present, FPM socket up,
 phnx list
 phnx list --all   # also show internal phnx-managed sites (e.g. phpmyadmin)
 ```
+
+---
+
+### `phnx secure [subdomain]` / `phnx unsecure [subdomain]`
+
+Serves a site over HTTPS with a certificate your browser trusts. On first use phnx generates a local certificate authority in `~/.phnx/ssl/ca/` and installs it into the system trust store (`update-ca-trust` / `update-ca-certificates` on Linux, the System keychain on macOS, plus Firefox/Chrome NSS databases when `certutil` is available). Under WSL it also offers to import the CA into Windows so Windows browsers trust it.
+
+Each site gets its own certificate (valid for `<name>.<tld>` and `*.<name>.<tld>`) under `~/.phnx/ssl/certs/`. A site on port 80 moves to 443 and gets an HTTP→HTTPS redirect; sites on a custom port keep it.
+
+```bash
+phnx secure myapp        # → https://myapp.test
+phnx secure              # matches the site for the current directory
+phnx secure --renew      # re-issue the certificate
+phnx unsecure myapp      # back to http://myapp.test, certificate deleted
+```
+
+No `openssl` or `mkcert` needed — certificates are generated in-process. Restart your browser after the first run so it picks up the new CA.
 
 ---
 
@@ -219,6 +237,7 @@ phnx init  (in ~/code/myapp)
 - **Sites** are individual nginx config files in `/etc/nginx/phnx-sites/`, pulled in by a single `include` directive added to `nginx.conf`. Templates exist for `laravel`, `wordpress`, and `php`.
 - **PHP versions** are either *tagged* (named installs like `8.2`/`8.4`, whose socket/service/binary `phnx` computes) or *untagged* (the distro's system PHP-FPM, whose paths are stored at registration). `phnx` makes both nginx and PHP-FPM run as your user so they can read project roots that live under user-owned paths.
 - **Per-project PHP** is controlled by a `.php-version` file (`phnx php pin`), so different sites can run on different versions simultaneously.
+- **HTTPS** uses a phnx-generated local CA (`~/.phnx/ssl/ca/rootCA.pem`) that is installed once into the OS trust store; `phnx secure` signs a per-site certificate with it and rewrites the site's nginx config with `listen 443 ssl`.
 
 ---
 
@@ -233,13 +252,14 @@ State lives in `~/.phnx/config.json` (created by `phnx configure`):
 | `default_php` | Default PHP version for new sites |
 | `real_user` / `real_group` | The user/group nginx + PHP-FPM workers run as |
 | `mysql` | Host/port/user/password used for WordPress + phpMyAdmin |
-| `sites` | Registered sites |
+| `sites` | Registered sites (`secure: true` marks HTTPS sites) |
 | `php_versions` | Registered PHP installations |
 
 Other relevant locations:
 
 - nginx site configs: `/etc/nginx/phnx-sites/*.conf`
 - internal tools (e.g. phpMyAdmin): `~/.phnx/tools/`
+- local CA and site certificates: `~/.phnx/ssl/`
 - per-project version pin: `.php-version` in the project root
 
 ---
