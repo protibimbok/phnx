@@ -153,7 +153,8 @@ func configureDatabaseUser(cfg *config.Config) error {
 	// Credentials needed to connect as root and run the setup SQL. A blank
 	// password means root authenticates over the unix socket (the default on a
 	// fresh MariaDB install), in which case we connect as the root system user.
-	rootPass, err := ui.AskPassword("Current database root password (leave blank if none / socket auth)")
+	ui.Info("phnx needs to connect to MySQL/MariaDB as 'root' to create its application user.")
+	rootPass, err := ui.AskPassword("Database (MySQL/MariaDB) root password — leave blank if root has no password or uses socket auth")
 	if err != nil {
 		return err
 	}
@@ -163,8 +164,8 @@ func configureDatabaseUser(cfg *config.Config) error {
 		user = "phnx"
 	}
 	pass, err := ui.AskText(
-		fmt.Sprintf("Password for application user '%s' (leave blank for none)", user),
-		"blank = no password",
+		fmt.Sprintf("New database password for the phnx application user '%s' — leave blank for no password", user),
+		"database password for sites and phpMyAdmin",
 		"",
 	)
 	if err != nil {
@@ -217,6 +218,7 @@ func runRootSQL(rootPass, sql string) error {
 	case runtime.GOOS == "darwin", os.Getuid() == 0:
 		name, args = client, []string{"-u", "root"}
 	default:
+		ui.Info("Connecting to the database as root via sudo. If prompted, enter your system (sudo) password.")
 		name, args = "sudo", []string{client, "-u", "root"}
 	}
 
