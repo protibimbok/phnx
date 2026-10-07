@@ -7,6 +7,7 @@ import (
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/hosts"
 	"github.com/protibimbok/phnx/internal/nginx"
+	sitepkg "github.com/protibimbok/phnx/internal/site"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -89,7 +90,7 @@ func runRemove(_ *cobra.Command, args []string) error {
 	// Optionally remove log files
 	removeLogs, _ := ui.Confirm("Remove nginx log files for this site?", false)
 	if removeLogs {
-		if err := RemoveLogFiles(site.Subdomain); err != nil {
+		if err := sitepkg.RemoveLogFiles(site.Subdomain); err != nil {
 			ui.Warn(fmt.Sprintf("removing logs: %v", err))
 		} else {
 			ui.Success("Log files removed")

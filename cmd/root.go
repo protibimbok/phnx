@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	initcmd "github.com/protibimbok/phnx/cmd/init"
 	phpcmd "github.com/protibimbok/phnx/cmd/php"
 	"github.com/protibimbok/phnx/cmd/setup"
 	"github.com/spf13/cobra"
@@ -31,11 +32,9 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.AddCommand(initcmd.InitCmd)
 	rootCmd.AddCommand(phpcmd.PHPCmd)
 	rootCmd.AddCommand(setup.SetupCmd)
-
-	// Wire the RegisterInternalSite helper into the setup package (avoids import cycle)
-	setup.SetRegisterFunc(RegisterInternalSite)
 
 	rootCmd.Version = fmt.Sprintf("%s (%s)", Version, Commit)
 }

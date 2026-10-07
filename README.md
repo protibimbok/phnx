@@ -121,13 +121,14 @@ Re-run it any time — it only changes what's missing.
 
 ---
 
-### `phnx init [subdomain]`
+### `phnx init [dir]`
 
-Registers the current directory as a local site: writes the nginx config, adds an `/etc/hosts` entry, ensures the right PHP-FPM pool is running, and reloads nginx (rolling back on failure).
+Registers a directory as a local site: writes the nginx config, adds an `/etc/hosts` entry, ensures the right PHP-FPM pool is running, and reloads nginx (rolling back on failure). `dir` defaults to the current directory (a `Using <path>` warning tells you which one was picked) and is created if it doesn't exist. The subdomain defaults to the directory name.
 
 ```bash
-phnx init                       # subdomain = current folder name, prompts for type
-phnx init myapp                 # explicit subdomain
+phnx init                       # current dir, subdomain = folder name, prompts for type
+phnx init myapp                 # ./myapp (created if missing), subdomain = myapp
+phnx init ~/code/blog --subdomain blog   # explicit directory and subdomain
 phnx init --type wordpress      # laravel | wordpress | php
 phnx init --php 8.2             # use a specific PHP version
 phnx init --port 8080           # listen on a non-default port

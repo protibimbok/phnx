@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/protibimbok/phnx/internal/config"
+	"github.com/protibimbok/phnx/internal/site"
 	"github.com/protibimbok/phnx/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -128,28 +129,17 @@ func runPHPMyAdmin(_ *cobra.Command, _ []string) error {
 	ui.Success("config.inc.php written")
 
 	// 6. Register as internal site
-	if registerInternalSiteFunc == nil {
-		return fmt.Errorf("internal: registerInternalSiteFunc not wired up")
-	}
 	phpVersion := cfg.DefaultPHP
 	if phpVersion == "" && len(cfg.PHPVersions) > 0 {
 		phpVersion = cfg.PHPVersions[0].Version
 	}
-	if err := registerInternalSiteFunc("phpmyadmin", installDir, "php", phpVersion, 80); err != nil {
+	if err := site.RegisterInternal("phpmyadmin", installDir, "php", phpVersion, 80); err != nil {
 		return fmt.Errorf("registering phpmyadmin site: %w", err)
 	}
 
 	ui.Separator()
 	ui.Success(fmt.Sprintf("phpMyAdmin installed: http://phpmyadmin.%s", cfg.TLD))
 	return nil
-}
-
-// registerInternalSiteFunc is set by cmd/root.go to avoid import cycles.
-var registerInternalSiteFunc func(subdomain, path, siteType, phpVersion string, port int) error
-
-// SetRegisterFunc wires the init command helper into setup.
-func SetRegisterFunc(fn func(subdomain, path, siteType, phpVersion string, port int) error) {
-	registerInternalSiteFunc = fn
 }
 
 func renderPMAConfig(cfg *config.Config, blowfish, tmpDir string) string {

@@ -1,4 +1,4 @@
-package cmd
+package initcmd
 
 import (
 	"fmt"
@@ -177,4 +177,12 @@ func copyDirContents(src, dst string) error {
 		return fmt.Errorf("copying scaffolded files: %w", err)
 	}
 	return nil
+}
+
+func isDirEmpty(path string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	return len(entries) == 0
 }
