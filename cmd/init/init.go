@@ -104,7 +104,7 @@ func runInit(_ *cobra.Command, args []string) error {
 	ui.Info(fmt.Sprintf("Path: %s", cwd))
 	ui.Info(fmt.Sprintf("Type: %s | PHP: %s | Port: %d", siteType, phpVersion, initPort))
 
-	if err := maybeScaffold(siteType, cwd, cfg); err != nil {
+	if err := maybeScaffold(siteType, cwd, subdomain, resolved.Binary, cfg); err != nil {
 		return err
 	}
 

@@ -31,21 +31,8 @@ func scaffoldWordPress(cwd string, cfg *config.Config, alongside bool) error {
 		return err
 	}
 
-	// Create database (exec directly — backticks in SQL must not go through a shell)
-	mysqlArgs := []string{
-		"-h", cfg.MySQL.Host,
-		"-P", fmt.Sprintf("%d", cfg.MySQL.Port),
-		"-u", cfg.MySQL.User,
-	}
-	if cfg.MySQL.Password != "" {
-		mysqlArgs = append(mysqlArgs, "-p"+cfg.MySQL.Password)
-	}
-	mysqlArgs = append(mysqlArgs, "-e", fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`;", dbName))
-	client, err := database.ClientBinary()
-	if err != nil {
+	if err := database.Create(cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.User, cfg.MySQL.Password, dbName); err != nil {
 		ui.Warn(fmt.Sprintf("Could not create database %s: %v", dbName, err))
-	} else if out, err := exec.Command(client, mysqlArgs...).CombinedOutput(); err != nil {
-		ui.Warn(fmt.Sprintf("Could not create database %s: %v\n%s", dbName, err, string(out)))
 	} else {
 		ui.Success(fmt.Sprintf("Database %s created", dbName))
 	}

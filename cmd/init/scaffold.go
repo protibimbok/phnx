@@ -17,10 +17,13 @@ const (
 	scaffoldSkip      = "Skip scaffolding"
 )
 
-func maybeScaffold(siteType, cwd string, cfg *config.Config) error {
+func maybeScaffold(siteType, cwd, subdomain, phpBinary string, cfg *config.Config) error {
 	switch siteType {
 	case "laravel":
-		return maybeScaffoldLaravel(cwd)
+		if err := maybeScaffoldLaravel(cwd); err != nil {
+			return err
+		}
+		return maybeConfigureLaravelDatabase(cwd, subdomain, phpBinary, cfg)
 	case "wordpress":
 		return maybeScaffoldWordPress(cwd, cfg)
 	default:
