@@ -18,6 +18,10 @@ import (
 // and only matches lines whose sole content is the directive.
 var commentedExtensionRe = regexp.MustCompile(`^(\s*);\s*((?:zend_)?extension)\s*=\s*(\S+)\s*$`)
 
+// activeExtensionRe matches an active extension directive, e.g. "extension=redis"
+// or "zend_extension=opcache.so", with the same restrictions as above.
+var activeExtensionRe = regexp.MustCompile(`^(\s*)((?:zend_)?extension)\s*=\s*(\S+)\s*$`)
+
 // EnableExtensions uncomments every ";extension=" / ";zend_extension=" line in the
 // php.ini file(s) for the given PHP installation, so the bundled extensions are
 // actually loaded. When the extension's module (.so) is missing from the
@@ -108,26 +112,14 @@ func extName(value string) string {
 
 // EnableExtension uncomments the directive for a single extension in the php.ini
 // file(s) and the scanned conf.d directory of the given PHP installation. It
-// reports whether any file was changed. Like EnableExtensions it is a no-op on
-// Fedora, where Remi packages ship active drop-ins.
+// reports whether any file was changed. On Fedora only the php.d drop-ins are
+// touched (see EnableExtensions for why the main php.ini is off-limits there).
 func EnableExtension(r ResolvedPHP, name string) (bool, error) {
-	if system.IsFedora() {
-		return false, nil
-	}
 	name = strings.ToLower(name)
-	files := iniFiles(r)
-	if dir := scanDir(r.Binary); dir != "" {
-		matches, _ := filepath.Glob(filepath.Join(dir, "*.ini"))
-		files = append(files, matches...)
-	}
-
 	extDir := extensionDir(r.Binary)
 	only := map[string]bool{name: true}
 	changed := false
-	for _, f := range files {
-		if _, err := os.Stat(f); err != nil {
-			continue
-		}
+	for _, f := range extIniFiles(r, !system.IsFedora()) {
 		names, err := enableInFile(f, extDir, only)
 		if err != nil {
 			return changed, err
@@ -137,6 +129,70 @@ func EnableExtension(r ResolvedPHP, name string) (bool, error) {
 		}
 	}
 	return changed, nil
+}
+
+// DisableExtension comments out every active directive that loads the named
+// extension in the php.ini file(s) and the scanned conf.d directory of the given
+// PHP installation. It reports whether any file was changed; false means no
+// directive loads it (it is either already disabled or compiled into PHP).
+// The caller is responsible for restarting the FPM service.
+func DisableExtension(r ResolvedPHP, name string) (bool, error) {
+	name = strings.ToLower(name)
+	changed := false
+	for _, f := range extIniFiles(r, true) {
+		ok, err := disableInFile(f, name)
+		if err != nil {
+			return changed, err
+		}
+		changed = changed || ok
+	}
+	return changed, nil
+}
+
+// disableInFile comments out the directives loading the named extension in a
+// single ini file and writes it back (escalating to sudo when needed).
+func disableInFile(path, name string) (bool, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	changed := false
+	for i, line := range lines {
+		m := activeExtensionRe.FindStringSubmatch(line)
+		if m == nil || extName(strings.Trim(m[3], `"`)) != name {
+			continue
+		}
+		lines[i] = fmt.Sprintf("%s;%s=%s", m[1], m[2], m[3])
+		changed = true
+	}
+
+	if !changed {
+		return false, nil
+	}
+	return true, system.WriteFile(path, strings.Join(lines, "\n"))
+}
+
+// extIniFiles returns the existing ini files that may load extensions for the
+// given PHP installation: the scanned conf.d drop-ins, plus the main php.ini(s)
+// when includeMain is set.
+func extIniFiles(r ResolvedPHP, includeMain bool) []string {
+	var candidates []string
+	if includeMain {
+		candidates = iniFiles(r)
+	}
+	if dir := scanDir(r.Binary); dir != "" {
+		matches, _ := filepath.Glob(filepath.Join(dir, "*.ini"))
+		candidates = append(candidates, matches...)
+	}
+	var files []string
+	for _, f := range candidates {
+		if _, err := os.Stat(f); err == nil {
+			files = append(files, f)
+		}
+	}
+	return files
 }
 
 // ModuleAvailable reports whether the shared object for an extension is present

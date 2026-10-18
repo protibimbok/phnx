@@ -2,7 +2,9 @@ package php
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -19,6 +21,19 @@ func ValidateExtension(name string) error {
 		return fmt.Errorf("invalid extension name %q — expected lowercase letters, digits or underscores", name)
 	}
 	return nil
+}
+
+// corePackageSuffixes are package-name suffixes that are parts of PHP itself
+// rather than extensions (e.g. php8.3-fpm, php84-php-common); removing them
+// would take PHP down with the "extension".
+var corePackageSuffixes = map[string]bool{
+	"cli": true, "fpm": true, "common": true, "cgi": true, "dev": true, "devel": true, "phpdbg": true,
+}
+
+// IsCorePackage reports whether an extension name actually names a core PHP
+// package that must not be removed as an extension.
+func IsCorePackage(ext string) bool {
+	return corePackageSuffixes[ext]
 }
 
 // InstallExtension installs the package that provides the given extension for
@@ -84,4 +99,54 @@ func installExtMac(version, ext string) error {
 		}
 	}
 	return system.RunUser("brew", "install", fmt.Sprintf("shivammathur/extensions/%s@%s", ext, version))
+}
+
+// UninstallExtension removes the package that provides the given extension for
+// the given PHP installation. It reports false (and does nothing) when no
+// separately installed package provides it, i.e. the extension ships with PHP.
+func UninstallExtension(r ResolvedPHP, ext string) (bool, error) {
+	if IsCorePackage(ext) {
+		return false, fmt.Errorf("%s is part of PHP itself, not an extension", ext)
+	}
+	if runtime.GOOS == "darwin" {
+		formula := fmt.Sprintf("%s@%s", ext, r.Version)
+		if _, err := os.Stat(filepath.Join(system.Platform.BrewPrefix, "Cellar", formula)); err != nil {
+			return false, nil
+		}
+		// brew must NOT run under sudo
+		return true, system.RunUser("brew", "uninstall", "shivammathur/extensions/"+formula)
+	}
+	switch {
+	case system.IsArch():
+		pkg := "php-" + ext
+		if r.Tagged {
+			pkg = fmt.Sprintf("php%s-%s", system.ArchVersionTag(r.Version), ext)
+		}
+		if exec.Command("pacman", "-Q", pkg).Run() != nil {
+			return false, nil
+		}
+		return true, system.Run("pacman", "-Rns", "--noconfirm", pkg)
+	case system.IsDebian():
+		pkg := fmt.Sprintf("php%s-%s", r.Version, ext)
+		// Virtual packages (e.g. php8.3-pdo, provided by php8.3-common) have no
+		// install status of their own, so they read as "not installed" here.
+		out, _ := exec.Command("dpkg-query", "-W", "-f=${Status}", pkg).Output()
+		if !strings.Contains(string(out), "install ok installed") {
+			return false, nil
+		}
+		return true, system.Run("apt-get", "remove", "-y", pkg)
+	case system.IsFedora():
+		tag := system.ArchVersionTag(r.Version)
+		for _, pkg := range []string{
+			fmt.Sprintf("php%s-php-%s", tag, ext),
+			fmt.Sprintf("php%s-php-pecl-%s", tag, ext),
+		} {
+			if exec.Command("rpm", "-q", pkg).Run() == nil {
+				return true, system.Run("dnf", "remove", "-y", pkg)
+			}
+		}
+		return false, nil
+	default:
+		return false, fmt.Errorf("unsupported distro for automated extension removal — please remove the %s extension for PHP %s manually", ext, r.Version)
+	}
 }
