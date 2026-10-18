@@ -190,15 +190,19 @@ func configureDatabaseUser(cfg *config.Config) error {
 }
 
 // buildUserSQL returns idempotent SQL that (re)creates the application user with
-// full privileges. The user is granted from host '%' so phnx can reach it over
-// TCP (127.0.0.1), which MySQL treats as a non-socket connection.
+// full privileges. The user is created for both '%' and 'localhost': MariaDB maps
+// TCP connections from 127.0.0.1 to 'localhost', and a fresh install ships an
+// anonymous ''@'localhost' account that would otherwise match before '%'.
 func buildUserSQL(user, pass string) string {
-	return strings.Join([]string{
-		fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%%' IDENTIFIED BY '%s';", user, pass),
-		fmt.Sprintf("ALTER USER '%s'@'%%' IDENTIFIED BY '%s';", user, pass),
-		fmt.Sprintf("GRANT ALL PRIVILEGES ON *.* TO '%s'@'%%' WITH GRANT OPTION;", user),
-		"FLUSH PRIVILEGES;",
-	}, "\n")
+	var stmts []string
+	for _, host := range []string{"%", "localhost"} {
+		stmts = append(stmts,
+			fmt.Sprintf("CREATE USER IF NOT EXISTS '%s'@'%s' IDENTIFIED BY '%s';", user, host, pass),
+			fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s';", user, host, pass),
+			fmt.Sprintf("GRANT ALL PRIVILEGES ON *.* TO '%s'@'%s' WITH GRANT OPTION;", user, host),
+		)
+	}
+	return strings.Join(append(stmts, "FLUSH PRIVILEGES;"), "\n")
 }
 
 // runRootSQL pipes sql into a root mysql session. When no root password is given
