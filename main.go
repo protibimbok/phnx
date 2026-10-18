@@ -8,7 +8,7 @@ import (
 	"github.com/protibimbok/phnx/internal/nginx"
 )
 
-//go:embed templates
+//go:embed all:templates
 var templateFiles embed.FS
 
 func main() {
