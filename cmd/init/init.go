@@ -205,18 +205,8 @@ func resolveSiteDir(args []string) (string, error) {
 }
 
 func resolvePhpVersion(cwd string, cfg *config.Config) string {
-	if initPHP != "" {
-		return initPHP
-	}
-
-	data, err := os.ReadFile(filepath.Join(cwd, ".php-version"))
-	if err == nil {
-		v := strings.TrimSpace(string(data))
-		if v != "" {
-			return v
-		}
-	}
-	return cfg.DefaultPHP
+	v, _, _ := php.ResolveProjectVersion(cfg, cwd, initPHP)
+	return v
 }
 
 func sanitizeSubdomain(s string) string {

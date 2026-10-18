@@ -2,6 +2,9 @@ package php
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/system"
@@ -48,4 +51,24 @@ func ResolvePHP(cfg *config.Config, version string) (ResolvedPHP, error) {
 // PATH; on Debian/Arch it simply pins `php` to the chosen version.
 func LinkDefaultBinary(binary string) error {
 	return system.Run("ln", "-sf", binary, "/usr/local/bin/php")
+}
+
+// ResolveProjectVersion picks the PHP version for the project at cwd, in order of precedence:
+// explicit override > .php-version file > registered site > the configured default (system) PHP.
+func ResolveProjectVersion(cfg *config.Config, cwd, override string) (version, source string, err error) {
+	if override != "" {
+		return override, "--php flag", nil
+	}
+	if data, err := os.ReadFile(filepath.Join(cwd, ".php-version")); err == nil {
+		if v := strings.TrimSpace(string(data)); v != "" {
+			return v, ".php-version", nil
+		}
+	}
+	if site := cfg.FindSiteByPath(cwd); site != nil && site.PHP != "" {
+		return site.PHP, fmt.Sprintf("site %s", site.Subdomain), nil
+	}
+	if cfg.DefaultPHP != "" {
+		return cfg.DefaultPHP, "system default", nil
+	}
+	return "", "", fmt.Errorf("no PHP version found — pass --php, run 'phnx php pin <version>', or set a default with 'phnx php default <version>'")
 }

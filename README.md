@@ -190,7 +190,11 @@ phnx php list            # show versions, install/FPM status, site counts, defau
 phnx php default 8.3     # set the default version (updates /usr/local/bin/php)
 phnx php pin 8.2         # write .php-version for the current project + re-point its site
 phnx php uninstall 8.3   # remove a version (blocked while sites still use it)
+phnx php ext install redis imagick   # install + enable extensions, then restart FPM
+phnx php ext install xdebug --php 8.2
 ```
+
+`phnx php ext install` targets the project's PHP version, resolved as: `--php` flag → `.php-version` in the current directory → the site registered for the current directory → the default PHP. Extensions that ship with PHP but are disabled in `php.ini` are simply enabled; others are installed from the same package source as PHP itself.
 
 ---
 
