@@ -1,6 +1,6 @@
 # phnx
 
-PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, and helper tools (Composer, WP-CLI, phpMyAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
+PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, databases (MySQL/MariaDB or PostgreSQL), and helper tools (Composer, WP-CLI, phpMyAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
 
 Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL, Alpine) and macOS (Homebrew).
 
@@ -83,7 +83,10 @@ go install github.com/protibimbok/phnx@latest
 
 - **nginx** — installed and present at `/etc/nginx` (Linux) or the Homebrew prefix (macOS).
 - **PHP-FPM** — either an existing install or let `phnx configure` install one for you.
-- **MySQL/MariaDB** — only required for WordPress scaffolding and phpMyAdmin. Run `phnx setup database` to install and configure it.
+- **MySQL/MariaDB** — only required for WordPress scaffolding and phpMyAdmin. Run `phnx setup mariadb` to install and configure it.
+- **PostgreSQL** — optional, for Laravel sites. Run `phnx setup postgres` to install and configure it.
+
+`phnx setup database` lets you pick one or both and sets them up in turn.
 
 `phnx` escalates to `sudo` automatically for privileged steps (editing `/etc/nginx`, `/etc/hosts`, installing packages, managing services), so run it as your regular user — not as root.
 
@@ -207,13 +210,19 @@ Install optional helper tools. Downloads are checksum-verified.
 ```bash
 phnx setup composer      # install Composer to /usr/local/bin/composer
 phnx setup wpcli         # install WP-CLI to /usr/local/bin/wp
-phnx setup database      # install MariaDB (if needed) and configure the phnx DB user
+phnx setup database      # pick MySQL/MariaDB, PostgreSQL, or both and set them up
+phnx setup mariadb       # install MariaDB (if needed) and configure the phnx DB user
+phnx setup postgres      # install PostgreSQL (if needed) and configure the phnx role
 phnx setup phpmyadmin    # install phpMyAdmin as an internal site → http://phpmyadmin.<tld>
 ```
 
 #### `phnx setup database`
 
-Prepares MySQL/MariaDB for WordPress scaffolding and phpMyAdmin. Idempotent — safe to re-run.
+Asks which database servers to set up — MySQL/MariaDB, PostgreSQL, or both — and runs `phnx setup mariadb` and/or `phnx setup postgres` for each one you pick.
+
+#### `phnx setup mariadb`
+
+Alias: `phnx setup mysql`. Prepares MySQL/MariaDB for WordPress scaffolding and phpMyAdmin. Idempotent — safe to re-run.
 
 1. Detects an existing MySQL or MariaDB server.
 2. If none is found, offers to install MariaDB (via Homebrew, pacman, apt, or dnf).
@@ -222,6 +231,19 @@ Prepares MySQL/MariaDB for WordPress scaffolding and phpMyAdmin. Idempotent — 
 5. Creates or updates the phnx application user (default `phnx`) and saves credentials to `~/.phnx/config.json`.
 
 `phnx setup phpmyadmin` runs this automatically if the database is not configured yet.
+
+#### `phnx setup postgres`
+
+Prepares PostgreSQL for Laravel sites. Idempotent — safe to re-run.
+
+1. Detects an existing PostgreSQL server.
+2. If none is found, offers to install it (Homebrew `postgresql@17`, pacman, apt, or dnf).
+3. Initializes the data directory where the distro doesn't (Arch, Fedora).
+4. Enables and starts the service.
+5. On Linux, switches any `ident` TCP rules in `pg_hba.conf` (Fedora's default) to `scram-sha-256` so password logins over `127.0.0.1` work.
+6. Creates or updates the phnx superuser role (default `phnx`, password defaults to `secret`) via the `postgres` system user, and saves credentials to `~/.phnx/config.json`.
+
+PHP needs the `pdo_pgsql` extension to connect — install it with `phnx php ext install pgsql`.
 
 ---
 
@@ -258,6 +280,7 @@ State lives in `~/.phnx/config.json` (created by `phnx configure`):
 | `default_php` | Default PHP version for new sites |
 | `real_user` / `real_group` | The user/group nginx + PHP-FPM workers run as |
 | `mysql` | Host/port/user/password used for WordPress + phpMyAdmin |
+| `postgres` | Host/port/user/password used for PostgreSQL-backed Laravel sites |
 | `sites` | Registered sites (`secure: true` marks HTTPS sites) |
 | `php_versions` | Registered PHP installations |
 

@@ -2,7 +2,8 @@ package config
 
 import "time"
 
-type MySQLConfig struct {
+// DBConfig holds the connection settings phnx uses for a database server.
+type DBConfig struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	User     string `json:"user"`
@@ -40,7 +41,8 @@ type Config struct {
 	DefaultPHP    string       `json:"default_php"`
 	RealUser      string       `json:"real_user"`
 	RealGroup     string       `json:"real_group"`
-	MySQL         MySQLConfig  `json:"mysql"`
+	MySQL         DBConfig     `json:"mysql"`
+	Postgres      DBConfig     `json:"postgres"`
 	Sites         []Site       `json:"sites"`
 	PHPVersions   []PHPVersion `json:"php_versions"`
 }

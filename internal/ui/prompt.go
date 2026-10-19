@@ -84,3 +84,33 @@ func AskPassword(title string) (string, error) {
 	}
 	return result, nil
 }
+
+// AskMultiSelect shows a multiple-choice selection prompt.
+func AskMultiSelect(title string, options []string) ([]string, error) {
+	if len(options) == 0 {
+		return nil, fmt.Errorf("no options provided")
+	}
+	var result []string
+	opts := make([]huh.Option[string], len(options))
+	for i, o := range options {
+		opts[i] = huh.NewOption(o, o)
+	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title(title).
+				Options(opts...).
+				Validate(func(s []string) error {
+					if len(s) == 0 {
+						return fmt.Errorf("select at least one")
+					}
+					return nil
+				}).
+				Value(&result),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}

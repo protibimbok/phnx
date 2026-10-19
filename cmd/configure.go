@@ -57,7 +57,7 @@ func runConfigure(_ *cobra.Command, _ []string) error {
 			DefaultPHP:    "",
 			RealUser:      realUser.Username,
 			RealGroup:     realGroup,
-			MySQL: config.MySQLConfig{
+			MySQL: config.DBConfig{
 				Host:     "127.0.0.1",
 				Port:     3306,
 				User:     "phnx",
