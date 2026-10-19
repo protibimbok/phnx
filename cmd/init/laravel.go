@@ -10,6 +10,7 @@ import (
 
 	"github.com/protibimbok/phnx/internal/config"
 	"github.com/protibimbok/phnx/internal/database"
+	"github.com/protibimbok/phnx/internal/php"
 	"github.com/protibimbok/phnx/internal/ui"
 )
 
@@ -26,6 +27,22 @@ func maybeConfigureLaravelDatabase(cwd, subdomain, phpBinary string, cfg *config
 		return nil
 	}
 
+	engine, err := resolveLaravelDBEngine(cfg)
+	if err != nil {
+		return err
+	}
+	conn, create, setupCmd, connection := cfg.MySQL, database.Create, "phnx setup mariadb", "mysql"
+	if engine == "postgres" {
+		conn, create, setupCmd, connection = cfg.Postgres, database.CreatePostgres, "phnx setup postgres", "pgsql"
+		if conn.User == "" {
+			ui.Warn("PostgreSQL is not configured yet — run `phnx setup postgres` first.")
+			conn = config.DBConfig{Host: "127.0.0.1", Port: 5432, User: "phnx", Password: "secret"}
+		}
+		if !php.IsLoaded(phpBinary, "pdo_pgsql") {
+			ui.Warn("The pdo_pgsql PHP extension is not loaded — run `phnx php ext install pgsql`.")
+		}
+	}
+
 	defaultName := database.SanitizeName(subdomain)
 	dbName, err := ui.AskText("Database name", defaultName, defaultName)
 	if err != nil {
@@ -33,9 +50,9 @@ func maybeConfigureLaravelDatabase(cwd, subdomain, phpBinary string, cfg *config
 	}
 	dbName = database.SanitizeName(dbName)
 
-	if err := database.Create(cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.User, cfg.MySQL.Password, dbName); err != nil {
+	if err := create(conn.Host, conn.Port, conn.User, conn.Password, dbName); err != nil {
 		ui.Warn(fmt.Sprintf("Could not create database %s: %v", dbName, err))
-		ui.Warn("Run `phnx setup database` to install and configure the database server, then create it manually.")
+		ui.Warn(fmt.Sprintf("Run `%s` to install and configure the database server, then create it manually.", setupCmd))
 	} else {
 		ui.Success(fmt.Sprintf("Database %s created", dbName))
 	}
@@ -47,12 +64,12 @@ func maybeConfigureLaravelDatabase(cwd, subdomain, phpBinary string, cfg *config
 	}
 
 	if err := writeEnvValues(envPath, []envPair{
-		{"DB_CONNECTION", "mysql"},
-		{"DB_HOST", cfg.MySQL.Host},
-		{"DB_PORT", fmt.Sprintf("%d", cfg.MySQL.Port)},
+		{"DB_CONNECTION", connection},
+		{"DB_HOST", conn.Host},
+		{"DB_PORT", fmt.Sprintf("%d", conn.Port)},
 		{"DB_DATABASE", dbName},
-		{"DB_USERNAME", cfg.MySQL.User},
-		{"DB_PASSWORD", cfg.MySQL.Password},
+		{"DB_USERNAME", conn.User},
+		{"DB_PASSWORD", conn.Password},
 	}); err != nil {
 		return fmt.Errorf("updating .env: %w", err)
 	}
@@ -66,6 +83,31 @@ func maybeConfigureLaravelDatabase(cwd, subdomain, phpBinary string, cfg *config
 		}
 	}
 	return nil
+}
+
+// resolveLaravelDBEngine picks the database engine (mysql or postgres): the --db flag if
+// given, otherwise whichever server is available, prompting when both are.
+func resolveLaravelDBEngine(cfg *config.Config) (string, error) {
+	switch initDB {
+	case "mysql", "mariadb":
+		return "mysql", nil
+	case "postgres", "postgresql", "pgsql":
+		return "postgres", nil
+	case "":
+	default:
+		return "", fmt.Errorf("unknown database engine %q — expected mysql or postgres", initDB)
+	}
+	_, mysqlErr := database.ClientBinary()
+	hasMySQL := mysqlErr == nil
+	hasPostgres := cfg.Postgres.User != ""
+	switch {
+	case hasMySQL && hasPostgres:
+		return ui.AskSelect("Both MySQL and PostgreSQL are available — which should Laravel use?", []string{"mysql", "postgres"})
+	case hasPostgres:
+		return "postgres", nil
+	default:
+		return "mysql", nil
+	}
 }
 
 func ensureEnvFile(cwd string) (string, error) {

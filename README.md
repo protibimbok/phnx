@@ -136,9 +136,10 @@ phnx init --type wordpress      # laravel | wordpress | php
 phnx init --php 8.2             # use a specific PHP version
 phnx init --port 8080           # listen on a non-default port
 phnx init --secure              # serve over HTTPS (see `phnx secure`)
+phnx init --type laravel --db postgres   # Laravel database engine: mysql | postgres
 ```
 
-- **Laravel** — if the directory is empty, offers to run `composer create-project laravel/laravel`.
+- **Laravel** — if the directory is empty, offers to run `composer create-project laravel/laravel`, then offers to create a database and write its settings to `.env`. If both MySQL and PostgreSQL are available it asks which to use (or pass `--db`); with only one, that one is used.
 - **WordPress** — if the directory is empty, downloads WordPress, creates a database, and (if WP-CLI is present) generates `wp-config.php`.
 - PHP version resolution order: `--php` flag → `.php-version` file → config default.
 

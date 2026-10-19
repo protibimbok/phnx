@@ -24,6 +24,7 @@ var (
 	initPHP       string
 	initSubdomain string
 	initSecure    bool
+	initDB        string
 )
 
 // InitCmd is the `phnx init` command, registered by cmd/root.go.
@@ -44,6 +45,7 @@ func init() {
 	InitCmd.Flags().StringVar(&initPHP, "php", "", "PHP version to use")
 	InitCmd.Flags().StringVar(&initSubdomain, "subdomain", "", "Subdomain to register (defaults to the directory name)")
 	InitCmd.Flags().BoolVar(&initSecure, "secure", false, "Serve the site over HTTPS with a locally trusted certificate")
+	InitCmd.Flags().StringVar(&initDB, "db", "", "Database engine for Laravel sites: mysql or postgres")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
