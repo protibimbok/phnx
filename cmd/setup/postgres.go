@@ -278,11 +278,16 @@ ALTER ROLE %s WITH LOGIN SUPERUSER PASSWORD %s;
 // superuser and returns its unaligned output. On Linux that is the postgres
 // system user (peer auth); Homebrew makes the installing user a superuser.
 func runPostgresSuperuserSQL(sql string) (string, error) {
+	return runPostgresSuperuserSQLIn("postgres", sql)
+}
+
+// runPostgresSuperuserSQLIn is runPostgresSuperuserSQL against database db.
+func runPostgresSuperuserSQLIn(db, sql string) (string, error) {
 	psql, err := database.PsqlBinary()
 	if err != nil {
 		return "", err
 	}
-	psqlArgs := []string{psql, "-d", "postgres", "-tAX", "-v", "ON_ERROR_STOP=1"}
+	psqlArgs := []string{psql, "-d", db, "-tAX", "-v", "ON_ERROR_STOP=1"}
 
 	var args []string
 	switch {

@@ -1,6 +1,6 @@
 # phnx
 
-PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, databases (MySQL/MariaDB or PostgreSQL), and helper tools (Composer, WP-CLI, phpMyAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
+PHP + Nginx local development environment manager. `phnx` provisions nginx sites, PHP-FPM pools, `/etc/hosts` entries, databases (MySQL/MariaDB or PostgreSQL), and helper tools (Composer, WP-CLI, phpMyAdmin, phpPgAdmin) so you can serve a Laravel, WordPress, or plain PHP project at `http://<name>.test` with a single command.
 
 Works on Linux (Arch, Debian/Ubuntu, Fedora/RHEL, Alpine) and macOS (Homebrew).
 
@@ -84,7 +84,7 @@ go install github.com/protibimbok/phnx@latest
 - **nginx** — installed and present at `/etc/nginx` (Linux) or the Homebrew prefix (macOS).
 - **PHP-FPM** — either an existing install or let `phnx configure` install one for you.
 - **MySQL/MariaDB** — only required for WordPress scaffolding and phpMyAdmin. Run `phnx setup mariadb` to install and configure it.
-- **PostgreSQL** — optional, for Laravel sites. Run `phnx setup postgres` to install and configure it.
+- **PostgreSQL** — optional, for Laravel sites and phpPgAdmin. Run `phnx setup postgres` to install and configure it.
 
 `phnx setup database` lets you pick one or both and sets them up in turn.
 
@@ -151,7 +151,7 @@ Lists registered sites with a health check (nginx config present, FPM socket up,
 
 ```bash
 phnx list
-phnx list --all   # also show internal phnx-managed sites (e.g. phpmyadmin)
+phnx list --all   # also show internal phnx-managed sites (e.g. phpmyadmin, phppgadmin)
 ```
 
 ---
@@ -215,6 +215,8 @@ phnx setup database      # pick MySQL/MariaDB, PostgreSQL, or both and set them 
 phnx setup mariadb       # install MariaDB (if needed) and configure the phnx DB user
 phnx setup postgres      # install PostgreSQL (if needed) and configure the phnx role
 phnx setup phpmyadmin    # install phpMyAdmin as an internal site → http://phpmyadmin.<tld>
+phnx setup phppgadmin    # install phpPgAdmin as an internal site → http://phppgadmin.<tld>
+phnx setup pgdebugger    # install the PL/pgSQL debugger phpPgAdmin's Debug button uses
 ```
 
 #### `phnx setup database`
@@ -245,6 +247,23 @@ Prepares PostgreSQL for Laravel sites. Idempotent — safe to re-run.
 6. Creates or updates the phnx superuser role (default `phnx`, password defaults to `secret`) via the `postgres` system user, and saves credentials to `~/.phnx/config.json`.
 
 PHP needs the `pdo_pgsql` extension to connect — install it with `phnx php ext install pgsql`.
+
+#### `phnx setup phppgadmin`
+
+Installs [phpPgAdmin](https://github.com/protibimbok/phpPgAdmin) as an internal site at `http://phppgadmin.<tld>`. It runs `phnx setup postgres` first, offers to set up the PL/pgSQL debugger (see below), then:
+
+1. Downloads the latest GitHub release and checks it against the release's SHA-256 digest.
+2. Extracts it to `~/.phnx/tools/phppgadmin`. Re-running upgrades in place and keeps `storage/`.
+3. Writes `config/db.php` so the login page points at the configured PostgreSQL host and port.
+4. Registers the site, using PHP 8.3 or newer. If the `pgsql` or `pdo_sqlite` extension is missing, it tells you to run `phnx php ext install pgsql` or `sqlite3`.
+
+#### `phnx setup pgdebugger`
+
+Sets up [EDB's pldebugger](https://github.com/EnterpriseDB/pldebugger), which phpPgAdmin's Debug button for PL/pgSQL functions needs. `phnx setup phppgadmin` asks about this. Running this command does it without asking. It's idempotent and safe to re-run.
+
+1. Installs the plugin: `postgresql-<major>-pldebugger` on Debian/Ubuntu. Elsewhere it builds from source with PGXS, which needs `make` and a C compiler. Fedora also installs `postgresql-server-devel`.
+2. Adds `plugin_debugger` to `shared_preload_libraries` with `ALTER SYSTEM`, keeping any libraries already listed, and restarts PostgreSQL.
+3. Creates the `pldbgapi` extension in every database, including `template1`, so new databases get it too.
 
 ---
 
